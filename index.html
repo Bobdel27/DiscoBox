@@ -101,9 +101,9 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .msg{font-size:.85rem;color:var(--muted);min-height:1.3em;margin:0}
 .pick{border:1px solid var(--accent);background:transparent;color:var(--fg);border-radius:10px;padding:10px 12px;font:inherit;cursor:pointer;min-height:44px}
 .pick:hover{background:var(--accent);color:var(--accent-fg)}
-.addbtn{display:block;text-align:center;border:1px dashed var(--accent);border-radius:10px;padding:12px;cursor:pointer;min-height:44px}
+.addbtn{position:relative;overflow:hidden;display:block;text-align:center;border:1px dashed var(--accent);border-radius:10px;padding:12px;cursor:pointer;min-height:44px}
 .addbtn:hover{background:var(--accent);color:var(--accent-fg)}
-.addbtn input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.addbtn input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:100px}
 .addbtn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 .now{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .times{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:.78rem;color:var(--muted)}
@@ -401,7 +401,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       </div>
 
       <div id="p-file" class="row" hidden>
-        <div class="addrow"><label class="addbtn">Ajouter des fichiers audio<input id="file" type="file" accept="audio/*" multiple></label><button class="pick" id="clearpl" type="button">Effacer la playlist</button></div>
+        <div class="addrow"><label class="addbtn">Ajouter des fichiers audio<input id="file" type="file" multiple></label><button class="pick" id="clearpl" type="button">Effacer la playlist</button></div>
         <div class="now" id="now">Aucun fichier</div>
         <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Position dans le morceau">
         <div class="times"><span id="tcur">0:00</span><span id="tdur">0:00</span></div>
@@ -890,12 +890,15 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     loadTrack(idx>0?idx-1:tracks.length-1,true);
   }
   $("file").addEventListener("change",function(){
-    var fl=Array.prototype.slice.call(this.files||[]); if(!fl.length) return;
+    var fl=Array.prototype.slice.call(this.files||[]).filter(function(f){return /^audio\//.test(f.type)||/\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|aif|aiff|caf|mp4|wma|weba)$/i.test(f.name)}); if(!fl.length) return;
     init();
-    fl.forEach(function(f){var t={name:f.name.replace(/\.[^.]+$/,""),url:URL.createObjectURL(f)};tracks.push(t);pAdd(t,f)});
     this.value="";
-    if(idx<0) loadTrack(0,false); else renderList();
-    say(tracks.length+" fichier"+(tracks.length>1?"s":"")+" dans la liste.");
+    say("Copie des fichiers en mémoire…");
+    Promise.all(fl.map(function(f){return f.arrayBuffer().then(function(buf){return {name:f.name,blob:new Blob([buf],{type:f.type||"audio/mpeg"})}})})).then(function(rs){
+      rs.forEach(function(r){var t={name:r.name.replace(/\.[^.]+$/,""),url:URL.createObjectURL(r.blob)};tracks.push(t);pAdd(t,r.blob)});
+      if(idx<0) loadTrack(0,false); else renderList();
+      say(tracks.length+" fichier"+(tracks.length>1?"s":"")+" dans la liste.");
+    }).catch(function(){say("Lecture du fichier impossible.")});
   });
   $("prev").addEventListener("click",function(){init();prevTrack()});
   $("next").addEventListener("click",function(){init();nextTrack(false)});
@@ -914,6 +917,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     try{localStorage.setItem("enceintes.resume",JSON.stringify({key:tracks[idx].key,t:aud.currentTime||0}))}catch(e){}
   }
   window.addEventListener("pagehide",saveResume);
+  document.addEventListener("visibilitychange",function(){if(document.hidden)saveResume()});
   [audA,audB].forEach(function(el){
     el.addEventListener("play",function(){if(el===aud)ui()});
     el.addEventListener("pause",function(){if(el===aud){ui();saveResume()}});
@@ -1196,7 +1200,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     try{
       var r=indexedDB.open("enceintes",1);
       r.onupgradeneeded=function(){r.result.createObjectStore("tracks",{autoIncrement:true})};
-      r.onsuccess=function(){pdb=r.result;done()};
+      r.onsuccess=function(){pdb=r.result;try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}done()};
       r.onerror=function(){done()};
     }catch(e){done()}
   }

@@ -194,7 +194,6 @@ canvas#viz{width:100%;height:clamp(90px,17vh,240px);display:block;border-radius:
 .band .bv,.band .bl{font-family:var(--font-mono);font-size:.62rem;color:var(--muted);line-height:1.1}
 .band .bv{color:var(--fg)}
 .band.pre{border-right:1px solid var(--line);margin-right:3px;padding-right:3px}
-.ipad .eqbands input[type=range]{writing-mode:horizontal-tb;direction:ltr;width:120px;height:22px;margin:49px -49px;transform:rotate(-90deg);-webkit-appearance:auto}
 .eqbands input[type=range]{writing-mode:vertical-lr;direction:rtl;width:22px;height:clamp(80px,13vh,160px);margin:0}
 #eqcurve{width:100%;height:clamp(34px,5vh,60px);display:block;border-radius:8px;background:color-mix(in srgb,var(--bg) 70%,transparent)}
 .eqrow{display:flex;gap:6px;align-items:center}
@@ -529,72 +528,12 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
 
 <script>
 (function(){
-  try{if(/iPad/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1))document.documentElement.classList.add("ipad")}catch(e){}
   var $=function(i){return document.getElementById(i)};
   var ctx=null, eqF=[], ePre=null, pre=null, sp=null, gL=null, gR=null, mg=null, vol=null;
   var anMain=null, anL=null, toneGain=null, osc=null, mediaSrc=null;
   var ch={L:{},R:{}};
-  var IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
-  /* iPhone / iPad : lecture par buffers décodés (Safari gère mal l'élément audio branché sur Web Audio) */
-  var bc={}, bo=[];
-  function getBuf(u){
-    if(bc[u]) return bc[u];
-    var p=fetch(u).then(function(r){return r.arrayBuffer()}).then(function(ab){
-      return new Promise(function(res,rej){var q=ctx.decodeAudioData(ab,res,rej); if(q&&q.catch) q.catch(rej)});
-    });
-    bc[u]=p; bo.push(u); while(bo.length>3){delete bc[bo.shift()]}
-    p.catch(function(){delete bc[u]});
-    return p;
-  }
-  function BufEl(){this.Ls={};this.s="";this.buf=null;this.off=0;this.t0=0;this.node=null;this.paused=true;this._loop=false;this.pd=NaN;this.out=null;this.tok=0;this.timer=null;this.probe=null;this.metaSent=false;this.preload="auto"}
-  BufEl.prototype.addEventListener=function(t,f){(this.Ls[t]=this.Ls[t]||[]).push(f)};
-  BufEl.prototype.emit=function(t){var a=this.Ls[t]||[];for(var i=0;i<a.length;i++){try{a[i].call(this,{type:t})}catch(e){}}};
-  BufEl.prototype.mk=function(c){this.out=c.createGain();return this.out};
-  BufEl.prototype._meta=function(){if(!this.metaSent&&isFinite(this.duration)&&this.duration>0){this.metaSent=true;this.emit("loadedmetadata")}};
-  BufEl.prototype._stopNode=function(){if(this.node){var n=this.node;this.node=null;n.onended=null;try{n.stop()}catch(e){}try{n.disconnect()}catch(e){}}};
-  BufEl.prototype._reset=function(){this.tok++;this._stopNode();clearInterval(this.timer);this.paused=true;this.off=0;this.buf=null;this.pd=NaN;this.metaSent=false;if(this.probe){try{this.probe.src=""}catch(e){}this.probe=null}};
-  BufEl.prototype._go=function(){
-    var me=this,n=ctx.createBufferSource(); n.buffer=this.buf; n.loop=this._loop; n.connect(this.out);
-    if(this.off>=this.buf.duration) this.off=0;
-    this.node=n; this.t0=ctx.currentTime; n.start(0,this.off);
-    n.onended=function(){ if(me.node!==n) return; me.node=null; me.paused=true; me.off=0; clearInterval(me.timer); me.emit("ended") };
-    clearInterval(this.timer); this.timer=setInterval(function(){me.emit("timeupdate")},250);
-  };
-  BufEl.prototype.play=function(){
-    var me=this; if(!me.s) return Promise.reject(new Error("no src"));
-    if(!me.paused) return Promise.resolve();
-    me.paused=false; var tk=++me.tok; me.emit("play");
-    return (me.buf?Promise.resolve(me.buf):getBuf(me.s)).then(function(b){
-      if(tk!==me.tok||me.paused) return;
-      me.buf=b; me._meta(); me._go();
-    }).catch(function(e){ if(tk===me.tok){me.paused=true;me.emit("pause")} throw e });
-  };
-  BufEl.prototype.pause=function(){
-    if(this.paused) return;
-    if(this.node) this.off=this.currentTime;
-    this._stopNode(); this.paused=true; this.tok++; clearInterval(this.timer); this.emit("pause");
-  };
-  BufEl.prototype.load=function(){};
-  BufEl.prototype.removeAttribute=function(a){if(a==="src") this.src=""};
-  Object.defineProperties(BufEl.prototype,{
-    src:{get:function(){return this.s},set:function(u){
-      this._reset(); this.s=u||""; if(!u) return;
-      var me=this,p=new Audio(); p.preload="metadata";
-      p.addEventListener("loadedmetadata",function(){ if(me.probe!==p) return; me.pd=p.duration; me._meta() });
-      this.probe=p; p.src=u;
-    }},
-    duration:{get:function(){return this.buf?this.buf.duration:this.pd}},
-    currentTime:{get:function(){
-      if(this.paused||!this.node||!this.buf) return this.off;
-      var d=this.buf.duration, e=this.off+(ctx.currentTime-this.t0); if(this._loop) e=e%d; return Math.min(e,d);
-    },set:function(v){
-      this.off=Math.max(0,+v||0);
-      if(!this.paused&&this.buf){this._stopNode();this._go()}
-    }},
-    loop:{get:function(){return this._loop},set:function(v){this._loop=!!v; if(this.node) this.node.loop=this._loop}}
-  });
-  var audA=IOS?new BufEl():$("aud"), audB=IOS?new BufEl():document.createElement("audio"), aud=audA, fx=[], xfading=false, xfTok=0, xfSec=3, resumeT=null, lastSave=0;
-  if(!IOS){audB.preload="auto"; audB.id="aud2"; document.body.appendChild(audB);}
+  var audA=$("aud"), audB=document.createElement("audio"), aud=audA, fx=[], xfading=false, xfTok=0, xfSec=3, resumeT=null, lastSave=0;
+  audB.preload="auto"; audB.id="aud2"; document.body.appendChild(audB);
   function pauseAll(){audA.pause();audB.pause()}
   var mode="tone", toneOn=false, tracks=[], idx=-1, loopMode=0, seeking=false;
   var lv={L:{w:0,t:0},R:{w:0,t:0}};
@@ -603,7 +542,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
 
   function hz(v){return 20*Math.pow(500,v/1000)}
   function xoHz(v){return 100*Math.pow(50,v/1000)}
-  function fmt(f){return f>=1000?(f/1000).toFixed(f>=10000?0:2).replace(/\.?0+$/,"")+" kHz":Math.round(f)+" Hz"}
+  function fmt(f){return f>=1000?(+(f/1000).toFixed(f>=10000?0:2))+" kHz":Math.round(f)+" Hz"}
   function slFromHz(f){return Math.round(1000*Math.log(f/20)/Math.log(500))}
   function say(t){$("msg").textContent=t||""}
   function tm(s){if(!isFinite(s))return "0:00";s=Math.floor(s);return Math.floor(s/60)+":"+("0"+(s%60)).slice(-2)}
@@ -616,28 +555,12 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     $("out").options[0].textContent="Sortie système (Chrome ou Edge pour choisir)";
   }
 
-  function detectSR(blob){
-    return blob.slice(0,262144).arrayBuffer().then(function(ab){
-      var u=new Uint8Array(ab), i=0, n=u.length;
-      if(u[0]===82&&u[1]===73&&u[2]===70&&u[3]===70) return u[24]|(u[25]<<8)|(u[26]<<16)|(u[27]<<24);
-      for(var j=0;j<n-12;j++){ if(u[j]===109&&u[j+1]===100&&u[j+2]===104&&u[j+3]===100){var o=j+4+(u[j+4]===1?20:12); return ((u[o]<<24)|(u[o+1]<<16)|(u[o+2]<<8)|u[o+3])>>>0} }
-      if(u[0]===73&&u[1]===68&&u[2]===51) i=10+((u[6]&127)<<21|(u[7]&127)<<14|(u[8]&127)<<7|(u[9]&127));
-      var T={3:[44100,48000,32000],2:[22050,24000,16000],0:[11025,12000,8000]};
-      for(;i<n-4;i++){ if(u[i]===255&&(u[i+1]&224)===224){var v=(u[i+1]>>3)&3, r=(u[i+2]>>2)&3; if(v!==1&&r!==3&&T[v]) return T[v][r]} }
-      return 0;
-    }).catch(function(){return 0});
-  }
-  var IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
   var MIMES={mp3:"audio/mpeg",m4a:"audio/mp4",mp4:"audio/mp4",aac:"audio/aac",wav:"audio/wav",flac:"audio/flac",ogg:"audio/ogg",oga:"audio/ogg",opus:"audio/ogg",aif:"audio/aiff",aiff:"audio/aiff",caf:"audio/x-caf",weba:"audio/webm"};
   function mimeOf(n){var m=/\.([^.]+)$/.exec(n||"");return (m&&MIMES[m[1].toLowerCase()])||"audio/mpeg"}
-  var SIL="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=", unlocked=false;
   function init(){
     if(ctx) return;
-    if(IOS){try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}}
     var AC=window.AudioContext||window.webkitAudioContext;
-    if(IOS){var tr=tracks[idx>=0?idx:0], sr=(tr&&tr.sr>=8000&&tr.sr<=96000)?tr.sr:44100;
-      try{ctx=new AC({latencyHint:"playback",sampleRate:sr})}catch(e){ctx=new AC()}
-    }else ctx=new AC();
+    ctx=new AC();
 
     eqF=BANDS.map(function(f,i){
       var b=ctx.createBiquadFilter(); b.type=bandType(i); b.frequency.value=bandFreq(i);
@@ -675,7 +598,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     applyXo(); applyEq(); applyBal();
 
     toneGain=ctx.createGain(); toneGain.gain.value=0; toneGain.connect(eqF[0]);
-    fx=[audA,audB].map(function(el){var g=ctx.createGain();g.connect(eqF[0]);(el.mk?el.mk(ctx):ctx.createMediaElementSource(el)).connect(g);return {el:el,g:g}});
+    fx=[audA,audB].map(function(el){var g=ctx.createGain();g.connect(eqF[0]);ctx.createMediaElementSource(el).connect(g);return {el:el,g:g}});
     listOutputs();
   }
 
@@ -737,7 +660,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   var NF=120, cfq=new Float32Array(NF), cmag=new Float32Array(NF), cph=new Float32Array(NF);
   for(var k=0;k<NF;k++) cfq[k]=20*Math.pow(1000,k/(NF-1));
   function sizeEq(){
-    var d=Math.min(window.devicePixelRatio||1,IOS?1.5:3);
+    var d=Math.min(window.devicePixelRatio||1,3);
     cvE.width=Math.max(1,Math.round(cvE.clientWidth*d)); cvE.height=Math.max(1,Math.round(cvE.clientHeight*d));
     drawCurve();
   }
@@ -957,9 +880,8 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     $("seek").value=0; $("tcur").textContent="0:00"; $("tdur").textContent="0:00";
     renderList();
     if(play){
-      if(IOS) setTimeout(function(){var nx=idx<tracks.length-1?idx+1:(loopMode===1?0:-1); if(ctx&&nx>=0&&nx!==idx&&tracks[nx]) getBuf(tracks[nx].url).catch(function(){})},2500);
       var go=function(){aud.play().catch(function(){say("Lecture impossible pour ce fichier.")})};
-      if(ctx&&ctx.state!=="running") ctx.resume().then(go,go); else go();
+      if(ctx&&ctx.state==="suspended") ctx.resume().then(go,go); else go();
     }
   }
   function nextTrack(auto){
@@ -979,7 +901,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     this.value="";
     say("Copie des fichiers en mémoire…");
     Promise.all(fl.map(function(f){return f.arrayBuffer().then(function(buf){return {name:f.name,blob:new Blob([buf],{type:f.type||mimeOf(f.name)})}})})).then(function(rs){
-      rs.forEach(function(r){var t={name:r.name.replace(/\.[^.]+$/,""),url:URL.createObjectURL(r.blob)};tracks.push(t);pAdd(t,r.blob);detectSR(r.blob).then(function(v){t.sr=v})});
+      rs.forEach(function(r){var t={name:r.name.replace(/\.[^.]+$/,""),url:URL.createObjectURL(r.blob)};tracks.push(t);pAdd(t,r.blob)});
       if(idx<0) loadTrack(0,false); else renderList();
       say(tracks.length+" fichier"+(tracks.length>1?"s":"")+" dans la liste.");
     }).catch(function(){say("Lecture du fichier impossible.")});
@@ -1051,7 +973,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
         if(aud.paused) aud.play().catch(function(){say("Lecture impossible pour ce fichier.")}); else {aud.pause();(aud===audA?audB:audA).pause()}
       }
     };
-    if(ctx.state!=="running") ctx.resume().then(go,go); else go();
+    if(ctx.state==="suspended") ctx.resume().then(go,go); else go();
   });
   function setMode(m){
     if(m===mode) return;
@@ -1071,7 +993,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   /* Visualiseur */
   var cv=$("viz"), c2=cv.getContext("2d"), accent="#3cc3d4", fcount=0;
   function sizeCv(){
-    var d=Math.min(window.devicePixelRatio||1,IOS?1.5:3);
+    var d=Math.min(window.devicePixelRatio||1,3);
     cv.width=Math.max(1,Math.round(cv.clientWidth*d));
     cv.height=Math.max(1,Math.round(cv.clientHeight*d));
   }
@@ -1277,9 +1199,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     });
   }
   function light(k){lightTop(k)}
-  var lastF=0;
   function loop(){
-    if(IOS){var tn=performance.now(); if(tn-lastF<50){requestAnimationFrame(loop);return} lastF=tn}
     hueT=(hueT+.5)%360;
     if(lightsOn&&ctx&&anL) anL.getByteFrequencyData(fb);
     ["L","R"].forEach(function(k){
@@ -1317,7 +1237,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
         var c=req.result;
         if(c){rows.push({key:c.key,name:c.value.name,blob:c.value.blob});c.continue();return}
         if(!rows.length)return;
-        rows.forEach(function(r){var t={key:r.key,name:r.name,url:URL.createObjectURL(r.blob)};tracks.push(t);detectSR(r.blob).then(function(v){t.sr=v})});
+        rows.forEach(function(r){tracks.push({key:r.key,name:r.name,url:URL.createObjectURL(r.blob)})});
         var rs=null, ri=0; try{rs=JSON.parse(localStorage.getItem("enceintes.resume")||"null")}catch(e){}
         if(rs) for(var k=0;k<tracks.length;k++) if(tracks[k].key===rs.key){ri=k;resumeT=rs.t>1?rs.t:null;break}
         loadTrack(ri,false); setMode("file");

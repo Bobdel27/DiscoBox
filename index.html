@@ -1267,6 +1267,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   })();
 
   /* Raccourcis clavier */
+  document.addEventListener("pointerup",function(){setTimeout(function(){var a=document.activeElement;if(a&&a.type==="range")a.blur()},0)});
   document.addEventListener("keydown",function(e){
     if(e.ctrlKey||e.metaKey||e.altKey||$("help").open) return;
     var t=e.target, tag=(t.tagName||"").toLowerCase(), ty=(t.type||"").toLowerCase();

@@ -194,6 +194,7 @@ canvas#viz{width:100%;height:clamp(90px,17vh,240px);display:block;border-radius:
 .band .bv,.band .bl{font-family:var(--font-mono);font-size:.62rem;color:var(--muted);line-height:1.1}
 .band .bv{color:var(--fg)}
 .band.pre{border-right:1px solid var(--line);margin-right:3px;padding-right:3px}
+.ipad .eqbands input[type=range]{transform:rotate(180deg)}
 .eqbands input[type=range]{writing-mode:vertical-lr;direction:rtl;width:22px;height:clamp(80px,13vh,160px);margin:0}
 #eqcurve{width:100%;height:clamp(34px,5vh,60px);display:block;border-radius:8px;background:color-mix(in srgb,var(--bg) 70%,transparent)}
 .eqrow{display:flex;gap:6px;align-items:center}
@@ -247,6 +248,9 @@ body.lights .led.on{background:var(--lc,var(--accent));box-shadow:0 0 10px var(-
 body.lights:not(.no-top) .topbar:not(.bot),body.lights:not(.no-bot) .topbar.bot{visibility:visible}
 .lbtns{display:flex;gap:.5rem;justify-content:center;margin-top:.6rem;min-height:2rem}
 .lbtns.ghost{visibility:hidden}
+.lrow{display:flex;flex-wrap:nowrap;gap:.35rem;justify-content:center;width:100%}
+.lbtns .lrow button.lb.fs[aria-pressed="true"]{background:#1fa64a;color:#fff;border-color:#0f6b2d;box-shadow:0 0 12px 2px rgba(31,166,74,.7),inset 0 0 0 1px rgba(255,255,255,.25)}
+.lbtns .lrow button.lb{flex:0 1 auto;min-width:0;white-space:nowrap;font-size:.75rem;padding:.35rem .6rem}
 .lbtns button{font-size:.85rem;padding:.35rem .8rem}
 .topbar.bot{margin-bottom:0;margin-top:2.5%}
 .topbar .tb{width:27%;aspect-ratio:1;border-radius:50%;box-shadow:none}
@@ -508,7 +512,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     <h3>Vu-mètre</h3>
     <ul>
       <li><b>Vu-mètre</b> : deux cadrans (gauche et droite) avec aiguille, de -20 à +3 VU. La zone rouge indique un son très fort.</li>
-      <li><b>Lumières</b> : une barre de trois ampoules au-dessus et une en dessous de chaque enceinte (haut gauche : rouge, jaune, verte ; bas droite : verte, jaune, rouge ; haut droite : blanche, rouge, bleue ; bas gauche : bleue, rouge, blanche. Deux boutons sous l'enceinte gauche allument ou éteignent les barres du haut et du bas). Elles clignotent en rythme avec la musique, chacune sur une plage de fréquences. Marche / arrêt avec ce bouton ou la touche L.</li>
+      <li><b>Lumières</b> : une barre de trois ampoules au-dessus et une en dessous de chaque enceinte (haut gauche : rouge, jaune, verte ; bas droite : verte, jaune, rouge ; haut droite : blanche, rouge, bleue ; bas gauche : bleue, rouge, blanche. Les boutons « Lumière H » et « Lumière B » sous l'enceinte gauche allument ou éteignent les barres du haut et du bas, « Stroboscope » active le stroboscope, « Plein écran » affiche l'application en plein écran ; ce bouton n'existe pas sur iPhone). Elles clignotent en rythme avec la musique, chacune sur une plage de fréquences. Touches : H (haut), B (bas), S (stroboscope).</li>
     </ul>
     <h3>Mode Tonalité</h3>
     <p>Génère un son de test (fréquence et forme d'onde au choix) pour vérifier les enceintes, la balance ou l'égaliseur. Ce n'est pas fait pour écouter de la musique.</p>
@@ -517,13 +521,15 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       <li><b>Espace</b> : lecture / pause</li>
       <li><b>↑ / ↓</b> : volume + / −</li>
       <li><b>← / →</b> : morceau précédent / suivant</li>
-      <li><b>L</b> : lumières marche / arrêt</li>
+      <li><b>H</b> / <b>B</b> / <b>S</b> : lumières haut / lumières bas / stroboscope</li>
+      <li><b>C</b> : plein écran</li>
     </ul>
   </div>
 </dialog>
 
 <script>
 (function(){
+  try{if(/iPad/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1))document.documentElement.classList.add("ipad")}catch(e){}
   var $=function(i){return document.getElementById(i)};
   var ctx=null, eqF=[], ePre=null, pre=null, sp=null, gL=null, gR=null, mg=null, vol=null;
   var anMain=null, anL=null, toneGain=null, osc=null, mediaSrc=null;
@@ -1011,6 +1017,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     return Math.max(-20,Math.min(5,d));
   }
   function vuAng(v){return -Math.PI/2+(-50+(v+20)/23*100)*Math.PI/180}
+  var vuShow={};
   function drawMeter(x0,pw,h,k,label){
     var cx=x0+pw/2, R=Math.min(pw*.5,h*.9), cy=h, fs=Math.max(9,h*.075);
     var lw=Math.max(1.5,h/80);
@@ -1030,7 +1037,10 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     c2.fillStyle=fgC; c2.font="700 "+(fs*1.3)+"px system-ui,sans-serif"; c2.fillText("VU",cx,cy-R*.4);
     c2.font="600 "+fs+"px system-ui,sans-serif"; c2.textAlign="left"; c2.fillStyle=muC; c2.fillText(label,x0+pw*.05,h*.12);
     c2.textAlign="right"; c2.fillStyle=fgC;
-    var vv=vu[k]; c2.fillText((vv<=-20?"-∞":(vv>0?"+":"")+vv.toFixed(1))+" VU",x0+pw*.95,h*.12);
+    var nowT=performance.now(), vs=vuShow[k]; if(!vs||nowT-vs.t>300){vs=vuShow[k]={t:nowT,v:vu[k]}}
+    var vv=vs.v; c2.font="600 "+fs+"px ui-monospace,Menlo,Consolas,monospace";
+    c2.fillText((vv<=-20?"-∞":(vv>0?"+":"")+vv.toFixed(1))+" VU",x0+pw*.95,h*.12);
+    vv=vu[k];
     var an=vuAng(Math.max(-21,Math.min(4,vv)));
     c2.save(); c2.beginPath(); c2.rect(x0,0,pw,h); c2.clip();
     c2.strokeStyle=fgC; c2.lineWidth=Math.max(2,h/70); c2.lineCap="round";
@@ -1108,12 +1118,25 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   (function(){var g=document.createElement("div"); g.className="strobe ghost"; g.setAttribute("aria-hidden","true"); var L=document.querySelector(".cabwrap.L"); L.insertBefore(g,L.firstChild)})();
   document.body.classList.add("no-top","no-bot");
   var sInt=90; var sflash=document.createElement("div"); sflash.id="sflash"; document.body.appendChild(sflash);
+  var fsBtn=null;
+  function toggleFS(){
+    var de=document.documentElement, fe=document.fullscreenElement||document.webkitFullscreenElement;
+    if(fe){(document.exitFullscreen||document.webkitExitFullscreen).call(document)}
+    else if(de.requestFullscreen||de.webkitRequestFullscreen){(de.requestFullscreen||de.webkitRequestFullscreen).call(de)}
+  }
+  function fsSync(){if(fsBtn)fsBtn.setAttribute("aria-pressed",!!(document.fullscreenElement||document.webkitFullscreenElement))}
+  document.addEventListener("fullscreenchange",fsSync); document.addEventListener("webkitfullscreenchange",fsSync);
   (function(){
     ["L","R"].forEach(function(k){
       var d=document.createElement("div"); d.className="lbtns"+(k==="R"?" ghost":"");
-      [["top","Lumière haut"],["bot","Lumière bas"],["strobe","Stroboscope"]].forEach(function(x){
-        var b=document.createElement("button"); b.type="button"; b.textContent=x[1]; b.className="lb";
-        if(k==="L"){
+      var row=document.createElement("div"); row.className="lrow";
+      [["top","Lumière H"],["bot","Lumière B"],["strobe","Stroboscope"],["fs","Plein écran"]].forEach(function(x){
+        var b=document.createElement("button"); b.type="button"; b.textContent=x[1]; b.className="lb"+(x[0]==="fs"?" fs":"");
+        var de=document.documentElement;
+        if(x[0]==="fs"){
+          if(!(de.requestFullscreen||de.webkitRequestFullscreen)){b.style.display="none"}
+          if(k==="L"){fsBtn=b; b.setAttribute("aria-pressed","false"); b.addEventListener("click",toggleFS)} else b.tabIndex=-1;
+        } else if(k==="L"){
           var isStrobe=x[0]==="strobe";
           b.setAttribute("aria-pressed","false");
           b.addEventListener("click",function(){
@@ -1121,8 +1144,9 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
             else{var off=document.body.classList.toggle("no-"+x[0]); b.setAttribute("aria-pressed",!off)}
           });
         } else b.tabIndex=-1;
-        d.appendChild(b);
+        row.appendChild(b);
       });
+      d.appendChild(row);
       var lab=document.createElement("label"); lab.className="sint"; lab.appendChild(document.createTextNode("Intensité stroboscope"));
       var r=document.createElement("input"); r.type="range"; r.min=10; r.max=100; r.value=sInt; r.setAttribute("aria-label","Intensité du stroboscope");
       if(k==="L") r.addEventListener("input",function(){sInt=+r.value}); else r.tabIndex=-1;
@@ -1254,8 +1278,12 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       e.preventDefault();
       var v=Math.max(0,Math.min(100,+$("vol").value+(e.key==="ArrowUp"?5:-5)));
       $("vol").value=v; $("vol").dispatchEvent(new Event("input",{bubbles:true}));
-    }else if(e.key==="l"||e.key==="L"){
-      e.preventDefault(); setLights(!lightsOn);
+    }else if(e.key==="c"||e.key==="C"){
+      e.preventDefault(); toggleFS();
+    }else if(/^[hbs]$/i.test(e.key)){
+      e.preventDefault();
+      var bs=document.querySelectorAll(".lbtns:not(.ghost) .lb"), k=e.key.toLowerCase();
+      bs[k==="h"?0:k==="b"?1:2].click();
     }else if((e.key==="ArrowRight"||e.key==="ArrowLeft")&&mode==="file"){
       if(ty==="range") return;
       e.preventDefault(); $(e.key==="ArrowRight"?"next":"prev").click();

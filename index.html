@@ -194,7 +194,7 @@ canvas#viz{width:100%;height:clamp(90px,17vh,240px);display:block;border-radius:
 .band .bv,.band .bl{font-family:var(--font-mono);font-size:.62rem;color:var(--muted);line-height:1.1}
 .band .bv{color:var(--fg)}
 .band.pre{border-right:1px solid var(--line);margin-right:3px;padding-right:3px}
-.ipad .eqbands input[type=range]{transform:rotate(180deg)}
+.ipad .eqbands input[type=range]{writing-mode:horizontal-tb;direction:ltr;width:120px;height:22px;margin:49px -49px;transform:rotate(-90deg);-webkit-appearance:auto}
 .eqbands input[type=range]{writing-mode:vertical-lr;direction:rtl;width:22px;height:clamp(80px,13vh,160px);margin:0}
 #eqcurve{width:100%;height:clamp(34px,5vh,60px);display:block;border-radius:8px;background:color-mix(in srgb,var(--bg) 70%,transparent)}
 .eqrow{display:flex;gap:6px;align-items:center}

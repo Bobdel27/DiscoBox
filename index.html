@@ -1466,6 +1466,9 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
             gdPut("enceintes.gdskip",gdSkipList().filter(function(x){return x!==n}));
           }
         }
+        var k2=gdGet("enceintes.gdknown");
+        entries.forEach(function(e){if(k2.indexOf(e.path)<0)k2.push(e.path)});
+        gdPut("enceintes.gdknown",k2);
       }).then(function(){
         return gdSyncPl(plmeta,root);
       }).then(function(){
@@ -1478,7 +1481,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
           say("Envoi "+(++n)+"/"+total+" : "+t.name);
           var a=t.artist||"Divers";
           var fp=folders[a]?Promise.resolve(folders[a]):gdMkdir(root,a).then(function(id){folders[a]=id;return id});
-          return fp.then(function(f){return gdUpload(f,gdFile(t),t.blob)}).then(function(id){gdMap[gdName(t)]=id});
+          return fp.then(function(f){return gdUpload(f,gdFile(t),t.blob)}).then(function(id){var n2=gdName(t);gdMap[n2]=id;var k3=gdGet("enceintes.gdknown");if(k3.indexOf(n2)<0){k3.push(n2);gdPut("enceintes.gdknown",k3)}});
         })});
         down.forEach(function(e){p=p.then(function(){
           say("Téléchargement "+(++n)+"/"+total+" : "+e.name);

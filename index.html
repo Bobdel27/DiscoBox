@@ -859,7 +859,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       var x=document.createElement("button");
       x.type="button"; x.className="del"; x.textContent="\u2715";
       x.setAttribute("aria-label",(inPl?"Retirer de la playlist ":"Retirer ")+t.name);
-      x.addEventListener("click",function(e){e.stopPropagation();if(inPl)plRemove(t);else removeTrack(i)});
+      x.addEventListener("click",function(e){e.stopPropagation();if(inPl)plRemove(t);else dropFromAlbum(i)});
       li.appendChild(x); l.appendChild(li);
     });
   }
@@ -934,8 +934,8 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     this.value="";
     say("Copie des fichiers en mémoire…");
     Promise.all(fl.map(function(f){return f.arrayBuffer().then(function(buf){return {name:f.name,artist:gdArtistFrom(buf,f.name),blob:new Blob([buf],{type:f.type||mimeOf(f.name)})}})})).then(function(rs){
-      var have={}; tracks.forEach(function(x){have[gdName(x)]=1});
-      rs.forEach(function(r){if(have[(r.artist||"Divers")+"/"+r.name])return;have[(r.artist||"Divers")+"/"+r.name]=1;var t={name:r.name.replace(/\.[^.]+$/,""),fname:r.name,artist:r.artist,blob:r.blob,url:URL.createObjectURL(r.blob)};tracks.push(t);pAdd(t,r.blob);gdBack(t)});
+      var have={}; tracks.forEach(function(x){have[gdName(x)]=x});
+      rs.forEach(function(r){var nm=(r.artist||"Divers")+"/"+r.name;if(have[nm]){if(have[nm].hid){have[nm].hid=false;pUpd(have[nm])}return}have[nm]=1;var t={name:r.name.replace(/\.[^.]+$/,""),fname:r.name,artist:r.artist,blob:r.blob,url:URL.createObjectURL(r.blob)};tracks.push(t);pAdd(t,r.blob);gdBack(t)});
       if(idx<0) loadTrack(0,false); else renderList();
       say(tracks.length+" fichier"+(tracks.length>1?"s":"")+" dans la liste.");
     }).catch(function(){say("Lecture du fichier impossible.")});
@@ -1269,9 +1269,9 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       var rows=[], req=pStore("readonly").openCursor();
       req.onsuccess=function(){
         var c=req.result;
-        if(c){rows.push({key:c.key,name:c.value.name,fname:c.value.fname,artist:c.value.artist,blob:c.value.blob});c.continue();return}
+        if(c){rows.push({key:c.key,name:c.value.name,fname:c.value.fname,artist:c.value.artist,hid:c.value.hid,blob:c.value.blob});c.continue();return}
         if(!rows.length)return;
-        rows.forEach(function(r){tracks.push({key:r.key,name:r.name,fname:r.fname,artist:r.artist,blob:r.blob,url:URL.createObjectURL(r.blob)})});
+        rows.forEach(function(r){tracks.push({key:r.key,name:r.name,fname:r.fname,artist:r.artist,hid:!!r.hid,blob:r.blob,url:URL.createObjectURL(r.blob)})});
         var rs=null, ri=0; try{rs=JSON.parse(localStorage.getItem("enceintes.resume")||"null")}catch(e){}
         if(rs) for(var k=0;k<tracks.length;k++) if(tracks[k].key===rs.key){ri=k;resumeT=rs.t>1?rs.t:null;break}
         loadTrack(ri,false); setMode("file"); gdFill();
@@ -1367,7 +1367,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   }
   function pUpd(t){
     if(!pdb||t.key==null)return;
-    try{var st=pStore("readwrite"),g=st.get(t.key);g.onsuccess=function(){var v=g.result;if(v){v.artist=t.artist;st.put(v,t.key)}}}catch(e){}
+    try{var st=pStore("readwrite"),g=st.get(t.key);g.onsuccess=function(){var v=g.result;if(v){v.artist=t.artist;v.hid=!!t.hid;st.put(v,t.key)}}}catch(e){}
   }
   function gdFill(){
     var p=Promise.resolve();
@@ -1516,22 +1516,23 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       if(p) p.items.forEach(function(n){for(i=0;i<tracks.length;i++) if(gdName(tracks[i])===n){r.push(i);break}});
       return r;
     }
-    for(i=0;i<tracks.length;i++) if(view.t!=="artist"||(tracks[i].artist||"Divers")===view.k) r.push(i);
+    for(i=0;i<tracks.length;i++) if(!tracks[i].hid&&(view.t!=="artist"||(tracks[i].artist||"Divers")===view.k)) r.push(i);
     return r;
   }
   function viewUi(){
     var s=$("viewsel"), arts={}, pls=plLive();
-    tracks.forEach(function(t){arts[t.artist||"Divers"]=1});
+    var vis=0;
+    tracks.forEach(function(t){if(t.hid)return;vis++;arts[t.artist||"Divers"]=1});
     var a=Object.keys(arts).sort(function(x,y){return x.localeCompare(y)});
     if(view.t==="pl"&&!plGet(view.k)) view={t:"all",k:""};
-    if(view.t==="artist"&&tracks.length&&!arts[view.k]) view={t:"all",k:""};
-    var h='<option value="all:">Tous les titres ('+tracks.length+')</option>';
+    if(view.t==="artist"&&!arts[view.k]) view={t:"all",k:""};
+    var h='<option value="all:">Tous les titres ('+vis+')</option>';
     if(a.length) h+='<optgroup label="Artistes">'+a.map(function(x){return '<option value="artist:'+gdEsc(x)+'">'+gdEsc(x)+'</option>'}).join("")+'</optgroup>';
     if(pls.length) h+='<optgroup label="Playlists">'+pls.map(function(p){return '<option value="pl:'+gdEsc(p.id)+'">'+gdEsc(p.name)+'</option>'}).join("")+'</optgroup>';
     s.innerHTML=h; s.value=view.t+":"+view.k;
     if(s.selectedIndex<0) s.selectedIndex=0;
     var tg=$("pltarget"), cur=tg.value;
-    tg.innerHTML=pls.map(function(p){return '<option value="'+gdEsc(p.id)+'">Ajouter à : '+gdEsc(p.name)+'</option>'}).join("");
+    tg.innerHTML='<option value="">Ajouter à : choisir une playlist</option>'+pls.map(function(p){return '<option value="'+gdEsc(p.id)+'">Ajouter à : '+gdEsc(p.name)+'</option>'}).join("");
     if(cur&&plGet(cur)) tg.value=cur;
     $("pltgrow").hidden=!pls.length;
   }
@@ -1541,18 +1542,30 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     PL.push(p); plSave(); return p;
   }
   function plAdd(list){
-    var p=plGet($("pltarget").value)||plGet((plLive()[0]||{}).id);
-    if(!p){p=plCreate(); if(!p) return}
+    var p=plGet($("pltarget").value);
+    if(!p){
+      if(plLive().length){say("Choisis d'abord une playlist dans « Ajouter à ».");return}
+      p=plCreate(); if(!p) return;
+    }
     var n=0;
     list.forEach(function(t){var k=gdName(t); if(p.items.indexOf(k)<0){p.items.push(k);n++}});
     p.ts=Date.now(); plSave(); renderList();
     $("pltarget").value=p.id;
     say(n?n+" titre"+(n>1?"s":"")+" ajouté"+(n>1?"s":"")+" à « "+p.name+" ».":"Déjà dans « "+p.name+" ».");
   }
+  function inAnyPl(t){var k=gdName(t);return plLive().some(function(p){return p.items.indexOf(k)>=0})}
+  function dropFromAlbum(i){
+    var t=tracks[i]; if(!t) return;
+    if(inAnyPl(t)){t.hid=true;pUpd(t);renderList();ui()}else removeTrack(i);
+  }
+  function gcHidden(){
+    for(var i=tracks.length-1;i>=0;i--) if(tracks[i].hid&&!inAnyPl(tracks[i])) removeTrack(i);
+    renderList();
+  }
   function plRemove(t){
     var p=plGet(view.k); if(!p) return;
     var k=gdName(t); p.items=p.items.filter(function(x){return x!==k}); p.ts=Date.now();
-    plSave(); renderList();
+    plSave(); gcHidden();
   }
   $("viewsel").addEventListener("change",function(){
     var v=this.value, i=v.indexOf(":");
@@ -1566,15 +1579,15 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   $("viewsel").addEventListener("pointerdown",function(){viaKey=false});
   $("plnew").addEventListener("click",function(){
     var p=plCreate(); if(!p) return;
-    view={t:"pl",k:p.id}; viewSave(); renderList();
+    view={t:"pl",k:p.id}; viewSave(); renderList(); $("pltarget").value=p.id;
     say("Playlist « "+p.name+" » créée : utilise + sur les titres pour les ajouter.");
   });
   function curPl(){return view.t==="pl"?plGet(view.k):plGet($("pltarget").value)}
   $("pldel").addEventListener("click",function(){
-    var p=curPl(); if(!p){say("Aucune playlist à supprimer.");return}
+    var p=curPl(); if(!p){say("Choisis d'abord une playlist.");return}
     if(!window.confirm("Supprimer la playlist « "+p.name+" » ? Les titres restent dans l'application.")) return;
     p.del=true; p.items=[]; p.ts=Date.now(); plSave();
-    if(view.t==="pl") view={t:"all",k:""}; viewSave(); renderList();
+    if(view.t==="pl") view={t:"all",k:""}; viewSave(); gcHidden();
   });
   $("plren").addEventListener("click",function(){
     if(view.t==="artist"){
@@ -1582,7 +1595,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       n=gdClean(n); if(n===old) return;
       var map={};
       tracks.forEach(function(t){
-        if((t.artist||"Divers")!==old) return;
+        if(t.hid||(t.artist||"Divers")!==old) return;
         var o=gdName(t); gdSkip(t); t.artist=n; map[o]=gdName(t); pUpd(t);
       });
       PL.forEach(function(p){
@@ -1593,20 +1606,25 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       plSave(); view={t:"artist",k:n}; viewSave(); renderList();
       return;
     }
-    var p=curPl(); if(!p){say("Aucune playlist à modifier.");return}
+    var p=curPl(); if(!p){say("Choisis d'abord une playlist.");return}
     var n2=window.prompt("Nouveau nom de la playlist ?",p.name); if(!n2||!n2.trim()) return;
     p.name=n2.trim().slice(0,60); p.ts=Date.now(); plSave(); renderList();
   });
   $("albdel").addEventListener("click",function(){
     if(view.t!=="artist"){say("Choisis d'abord un artiste dans le menu.");return}
     var k=view.k, n=0;
-    tracks.forEach(function(t){if((t.artist||"Divers")===k) n++});
-    if(!n||!window.confirm("Supprimer l'album « "+k+" » ("+n+" titre"+(n>1?"s":"")+") de l'application ?")) return;
-    for(var i=tracks.length-1;i>=0;i--) if((tracks[i].artist||"Divers")===k) removeTrack(i);
+    tracks.forEach(function(t){if(!t.hid&&(t.artist||"Divers")===k) n++});
+    if(!n||!window.confirm("Supprimer l'album « "+k+" » ("+n+" titre"+(n>1?"s":"")+") ? Les titres présents dans une playlist y restent.")) return;
+    for(var i=tracks.length-1;i>=0;i--) if(!tracks[i].hid&&(tracks[i].artist||"Divers")===k) dropFromAlbum(i);
     view={t:"all",k:""}; viewSave(); renderList();
   });
   $("pladdall").addEventListener("click",function(){
-    var l=vList().map(function(i){return tracks[i]}); if(l.length) plAdd(l);
+    var p=plGet($("pltarget").value);
+    if(!p){say("Choisis d'abord une playlist dans « Ajouter à ».");return}
+    if(view.t==="pl"){say("Choisis « Tous les titres » ou un album pour ajouter des titres.");return}
+    var l=vList().map(function(i){return tracks[i]}); if(!l.length) return;
+    if(l.length>1&&!window.confirm("Ajouter "+l.length+" titres à « "+p.name+" » ?")) return;
+    plAdd(l);
   });
   function gdSyncPl(plmeta,root){
     return (plmeta?gdFetch(GD_API+"/"+plmeta.id+"?alt=media").then(function(r){return r.json()}).catch(function(){return[]}):Promise.resolve([])).then(function(rp){

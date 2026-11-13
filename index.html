@@ -404,7 +404,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       </div>
 
       <div id="p-file" class="row" hidden>
-        <div class="addrow"><label class="addbtn">Ajouter des fichiers audio<input id="file" type="file" multiple></label><button class="pick" id="clearpl" type="button">Effacer la playlist</button></div>
+        <div class="addrow"><label class="addbtn">Ajouter des fichiers audio<input id="file" type="file" multiple></label><button class="pick" id="clearpl" type="button">Effacer la playlist</button><button class="pick" id="gdsync" type="button">Synchroniser Drive</button></div>
         <div class="now" id="now">Aucun fichier</div>
         <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Position dans le morceau">
         <div class="times"><span id="tcur">0:00</span><span id="tdur">0:00</span></div>
@@ -842,6 +842,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     var wasCur=(i===idx), wasPlaying=!aud.paused;
     try{URL.revokeObjectURL(t.url)}catch(e){}
     if(pdb&&t.key!=null){try{pStore("readwrite").delete(t.key)}catch(e){}}
+    gdSkip(t);
     tracks.splice(i,1);
     if(!tracks.length){
       idx=-1; pauseAll(); aud.removeAttribute("src"); aud.load();
@@ -901,7 +902,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     this.value="";
     say("Copie des fichiers en mémoire…");
     Promise.all(fl.map(function(f){return f.arrayBuffer().then(function(buf){return {name:f.name,blob:new Blob([buf],{type:f.type||mimeOf(f.name)})}})})).then(function(rs){
-      rs.forEach(function(r){var t={name:r.name.replace(/\.[^.]+$/,""),url:URL.createObjectURL(r.blob)};tracks.push(t);pAdd(t,r.blob)});
+      rs.forEach(function(r){var t={name:r.name.replace(/\.[^.]+$/,""),fname:r.name,blob:r.blob,url:URL.createObjectURL(r.blob)};tracks.push(t);pAdd(t,r.blob);gdBack(t)});
       if(idx<0) loadTrack(0,false); else renderList();
       say(tracks.length+" fichier"+(tracks.length>1?"s":"")+" dans la liste.");
     }).catch(function(){say("Lecture du fichier impossible.")});
@@ -1228,16 +1229,16 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       r.onerror=function(){done()};
     }catch(e){done()}
   }
-  function pAdd(t,blob){if(!pdb)return;try{var r=pStore("readwrite").add({name:t.name,blob:blob});r.onsuccess=function(){t.key=r.result}}catch(e){}}
+  function pAdd(t,blob){if(!pdb)return;try{var r=pStore("readwrite").add({name:t.name,fname:t.fname,blob:blob});r.onsuccess=function(){t.key=r.result}}catch(e){}}
   function pLoad(){
     if(!pdb)return;
     try{
       var rows=[], req=pStore("readonly").openCursor();
       req.onsuccess=function(){
         var c=req.result;
-        if(c){rows.push({key:c.key,name:c.value.name,blob:c.value.blob});c.continue();return}
+        if(c){rows.push({key:c.key,name:c.value.name,fname:c.value.fname,blob:c.value.blob});c.continue();return}
         if(!rows.length)return;
-        rows.forEach(function(r){tracks.push({key:r.key,name:r.name,url:URL.createObjectURL(r.blob)})});
+        rows.forEach(function(r){tracks.push({key:r.key,name:r.name,fname:r.fname,blob:r.blob,url:URL.createObjectURL(r.blob)})});
         var rs=null, ri=0; try{rs=JSON.parse(localStorage.getItem("enceintes.resume")||"null")}catch(e){}
         if(rs) for(var k=0;k<tracks.length;k++) if(tracks[k].key===rs.key){ri=k;resumeT=rs.t>1?rs.t:null;break}
         loadTrack(ri,false); setMode("file");
@@ -1256,6 +1257,101 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     if(pdb){try{pStore("readwrite").clear()}catch(e){}}
     say("Playlist effacée."); ui();
   });
+  /* Synchronisation Google Drive (dossier « Disco Box ») */
+  var GD_CLIENT_ID="234668882718-tr230ll91cncmrfpm729brqgs0sbr483.apps.googleusercontent.com";
+  var GD_SCOPE="https://www.googleapis.com/auth/drive.file";
+  var gdTok=null,gdExp=0,gdBusy=false,gdMap={};
+  var GD_EXT={"audio/mpeg":"mp3","audio/mp3":"mp3","audio/mp4":"m4a","audio/x-m4a":"m4a","audio/aac":"aac","audio/wav":"wav","audio/x-wav":"wav","audio/flac":"flac","audio/x-flac":"flac","audio/ogg":"ogg","audio/opus":"opus","audio/webm":"weba"};
+  function gdName(t){return t.fname||(t.name+"."+((t.blob&&GD_EXT[t.blob.type])||"mp3"))}
+  function gdBtn(){$("gdsync").disabled=gdBusy}
+  function gdLoad(cb){
+    if(window.google&&google.accounts&&google.accounts.oauth2) return cb();
+    var s=document.createElement("script"); s.src="https://accounts.google.com/gsi/client";
+    s.onload=cb; s.onerror=function(){say("Impossible de joindre Google (connexion ?).");gdBusy=false;gdBtn()};
+    document.head.appendChild(s);
+  }
+  function gdAuth(cb){
+    if(gdTok&&Date.now()<gdExp-60000) return cb();
+    var c=google.accounts.oauth2.initTokenClient({client_id:GD_CLIENT_ID,scope:GD_SCOPE,
+      callback:function(r){
+        if(r&&r.access_token){gdTok=r.access_token;gdExp=Date.now()+(r.expires_in||3600)*1000;cb()}
+        else{say("Connexion Drive refusée.");gdBusy=false;gdBtn()}
+      },
+      error_callback:function(){say("Connexion Drive annulée.");gdBusy=false;gdBtn()}});
+    c.requestAccessToken();
+  }
+  function gdFetch(url,opt){
+    opt=opt||{}; opt.headers=opt.headers||{}; opt.headers.Authorization="Bearer "+gdTok;
+    return fetch(url,opt).then(function(r){if(!r.ok){var e=new Error("HTTP "+r.status);e.status=r.status;throw e}return r});
+  }
+  var GD_API="https://www.googleapis.com/drive/v3/files";
+  function gdFolderId(){
+    var q="name='Disco Box' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+    return gdFetch(GD_API+"?q="+encodeURIComponent(q)+"&fields=files(id)&pageSize=1").then(function(r){return r.json()}).then(function(j){
+      if(j.files&&j.files.length) return j.files[0].id;
+      return gdFetch(GD_API+"?fields=id",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:"Disco Box",mimeType:"application/vnd.google-apps.folder"})}).then(function(r){return r.json()}).then(function(j){return j.id});
+    });
+  }
+  function gdList(fid,pt,acc){
+    var u=GD_API+"?q="+encodeURIComponent("'"+fid+"' in parents and trashed=false")+"&fields=nextPageToken,files(id,name)&pageSize=1000"+(pt?"&pageToken="+pt:"");
+    return gdFetch(u).then(function(r){return r.json()}).then(function(j){acc=acc.concat(j.files||[]);return j.nextPageToken?gdList(fid,j.nextPageToken,acc):acc});
+  }
+  function gdUpload(fid,name,blob){
+    var b="gdb"+Date.now();
+    var body=new Blob(["--"+b+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+JSON.stringify({name:name,parents:[fid]})+"\r\n--"+b+"\r\nContent-Type: "+(blob.type||"application/octet-stream")+"\r\n\r\n",blob,"\r\n--"+b+"--"]);
+    return gdFetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",headers:{"Content-Type":"multipart/related; boundary="+b},body:body}).then(function(r){return r.json()}).then(function(j){return j.id});
+  }
+  function gdGet(k){try{return JSON.parse(localStorage.getItem(k)||"[]")}catch(e){return[]}}
+  function gdPut(k,l){try{localStorage.setItem(k,JSON.stringify(l))}catch(e){}}
+  function gdSkipList(){return gdGet("enceintes.gdskip")}
+  function gdSkip(t){var n=gdName(t),l=gdSkipList();if(l.indexOf(n)<0){l.push(n);gdPut("enceintes.gdskip",l)}gdPut("enceintes.gdback",gdGet("enceintes.gdback").filter(function(x){return x!==n}))}
+  function gdBack(t){var n=gdName(t),l=gdGet("enceintes.gdback");gdPut("enceintes.gdskip",gdSkipList().filter(function(x){return x!==n}));if(l.indexOf(n)<0){l.push(n);gdPut("enceintes.gdback",l)}}
+  function gdPatch(id,blob){return gdFetch("https://www.googleapis.com/upload/drive/v3/files/"+id+"?uploadType=media",{method:"PATCH",headers:{"Content-Type":"application/json"},body:blob})}
+  function gdSync(){
+    if(gdBusy) return;
+    if(!GD_CLIENT_ID){say("ID client Google manquant dans le fichier.");return}
+    gdBusy=true; gdBtn(); say("Connexion à Drive…");
+    gdLoad(function(){gdAuth(function(){
+      var fid, files, meta, merged;
+      gdFolderId().then(function(id){fid=id;return gdList(fid,"",[])}).then(function(all){
+        meta=null; files=[];
+        all.forEach(function(f){if(f.name==="_supprimes.json")meta=f;else files.push(f)});
+        gdMap={}; files.forEach(function(f){gdMap[f.name]=f.id});
+        return meta?gdFetch(GD_API+"/"+meta.id+"?alt=media").then(function(r){return r.json()}).catch(function(){return[]}):[];
+      }).then(function(rm){
+        if(!Array.isArray(rm)) rm=[];
+        var back=gdGet("enceintes.gdback");
+        merged=rm.concat(gdSkipList()).filter(function(n,i,a){return a.indexOf(n)===i&&back.indexOf(n)<0});
+        for(var i=tracks.length-1;i>=0;i--) if(merged.indexOf(gdName(tracks[i]))>=0) removeTrack(i);
+        gdPut("enceintes.gdskip",merged);
+        var same=JSON.stringify(rm.slice().sort())===JSON.stringify(merged.slice().sort());
+        if(same) return;
+        var bl=new Blob([JSON.stringify(merged)],{type:"application/json"});
+        return meta?gdPatch(meta.id,bl):gdUpload(fid,"_supprimes.json",bl);
+      }).then(function(){
+        gdPut("enceintes.gdback",[]);
+        var have={}; tracks.forEach(function(t){have[gdName(t)]=1});
+        var up=tracks.filter(function(t){return t.blob&&!gdMap[gdName(t)]});
+        var down=files.filter(function(f){return !have[f.name]&&merged.indexOf(f.name)<0});
+        var total=up.length+down.length, n=0, p=Promise.resolve();
+        up.forEach(function(t){p=p.then(function(){say("Envoi "+(++n)+"/"+total+" : "+t.name);return gdUpload(fid,gdName(t),t.blob).then(function(id){gdMap[gdName(t)]=id})})});
+        down.forEach(function(f){p=p.then(function(){
+          say("Téléchargement "+(++n)+"/"+total+" : "+f.name);
+          return gdFetch(GD_API+"/"+f.id+"?alt=media").then(function(r){return r.blob()}).then(function(b){
+            var bl=new Blob([b],{type:mimeOf(f.name)});
+            var t={name:f.name.replace(/\.[^.]+$/,""),fname:f.name,blob:bl,url:URL.createObjectURL(bl)};
+            tracks.push(t); pAdd(t,bl);
+            if(idx<0) loadTrack(0,false); else renderList();
+          });
+        })});
+        return p.then(function(){return total});
+      }).then(function(total){say(total?"Drive synchronisé.":"Drive à jour.")})
+      .catch(function(e){if(e&&(e.status===401||e.status===403))gdTok=null;say("Erreur Drive : "+((e&&e.message)||"échec"))})
+      .then(function(){gdBusy=false;gdBtn()});
+    })});
+  }
+  $("gdsync").addEventListener("click",gdSync);
+  if(GD_CLIENT_ID) gdLoad(function(){});
   /* Mode d'emploi */
   (function(){
     var d=$("help");

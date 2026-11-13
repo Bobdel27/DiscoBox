@@ -159,7 +159,8 @@ canvas#viz{width:100%;height:clamp(90px,17vh,240px);display:block;border-radius:
   .eq .chips button{padding:4px 8px;min-height:28px;font-size:.78rem}
 }
 
-.addrow{display:grid;grid-template-columns:1fr auto;gap:8px}
+.addrow{display:flex;flex-wrap:wrap;gap:8px}
+.addrow .pick,.addrow .addbtn{flex:1 1 auto;white-space:nowrap}
 .addrow .addbtn{display:grid;place-items:center}
 @media (min-width:900px) and (min-height:520px){
   .center{grid-template-rows:minmax(0,1fr) auto}
@@ -359,6 +360,11 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
 .titleD p,.titleM p{margin:0!important}
 @media (min-width:900px) and (min-height:520px){.titleD{display:flex}.titleM{display:none}}
 .card{--accent:#aab3b9;--accent-fg:#1b1f22}
+/* Volume, balance et sortie audio sous l'égaliseur : plus de place pour les vu-mètres */
+@media (min-width:900px) and (min-height:520px){
+  .center,
+  .center:is(*){grid-template-rows:minmax(110px,1fr) auto auto auto;grid-template-areas:"viz viz" "src eq" "src vb" "src out"}
+}
 </style>
 </head>
 <body>
@@ -409,9 +415,8 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       </div>
 
       <div id="p-file" class="row" hidden>
-        <div class="addrow"><label class="addbtn">Ajouter des fichiers audio<input id="file" type="file" multiple></label><button class="pick" id="clearpl" type="button">Effacer la playlist</button><button class="pick" id="gdsync" type="button">Synchroniser Drive</button></div>
+        <div class="addrow"><label class="addbtn">Ajouter des fichiers audio<input id="file" type="file" multiple></label><button class="pick" id="clearpl" type="button">Effacer la playlist</button><button class="pick" id="gdsync" type="button">Synchroniser Drive</button><button class="pick" id="plnew" type="button">Nouvelle playlist</button><button class="pick" id="pldel" type="button" hidden>Supprimer la playlist</button></div>
         <div class="plrow"><select id="viewsel" aria-label="Choisir un artiste ou une playlist"></select></div>
-        <div class="plrow"><button class="pick sm" id="plnew" type="button">Nouvelle playlist</button><button class="pick sm" id="pldel" type="button" hidden>Supprimer la playlist</button></div>
         <div class="plrow" id="pltgrow" hidden><select id="pltarget" aria-label="Playlist où ajouter les titres"></select><button class="pick sm" id="pladdall" type="button">Tout ajouter</button></div>
         <div class="now" id="now">Aucun fichier</div>
         <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Position dans le morceau">

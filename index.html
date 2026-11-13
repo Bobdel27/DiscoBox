@@ -161,6 +161,7 @@ canvas#viz{width:100%;height:clamp(90px,17vh,240px);display:block;border-radius:
 
 .addrow{display:flex;flex-wrap:wrap;gap:8px}
 .addrow .pick,.addrow .addbtn{flex:1 1 auto;white-space:nowrap}
+#plbtns{flex-wrap:nowrap}#plbtns .pick{flex:1 1 0;min-width:0;padding-inline:6px}
 .addrow .addbtn{display:grid;place-items:center}
 @media (min-width:900px) and (min-height:520px){
   .center{grid-template-rows:minmax(0,1fr) auto}
@@ -415,7 +416,8 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       </div>
 
       <div id="p-file" class="row" hidden>
-        <div class="addrow"><label class="addbtn">Ajouter des fichiers audio<input id="file" type="file" multiple></label><button class="pick" id="clearpl" type="button">Effacer la playlist</button><button class="pick" id="gdsync" type="button">Synchroniser Drive</button><button class="pick" id="plnew" type="button">Nouvelle playlist</button><button class="pick" id="pldel" type="button" hidden>Supprimer la playlist</button></div>
+        <div class="addrow"><label class="addbtn">Ajouter des fichiers audio<input id="file" type="file" multiple></label><button class="pick" id="clearpl" type="button">Effacer la playlist</button><button class="pick" id="gdsync" type="button">Synchroniser Drive</button></div>
+        <div class="addrow" id="plbtns"><button class="pick sm" id="plnew" type="button">Nouvelle playlist</button><button class="pick sm" id="pldel" type="button" hidden>Supprimer la playlist</button><button class="pick sm" id="albdel" type="button" hidden>Supprimer l'album</button></div>
         <div class="plrow"><select id="viewsel" aria-label="Choisir un artiste ou une playlist"></select></div>
         <div class="plrow" id="pltgrow" hidden><select id="pltarget" aria-label="Playlist où ajouter les titres"></select><button class="pick sm" id="pladdall" type="button">Tout ajouter</button></div>
         <div class="now" id="now">Aucun fichier</div>
@@ -1534,6 +1536,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     $("pltgrow").hidden=!pls.length;
     $("pladdall").hidden=(view.t==="pl");
     $("pldel").hidden=(view.t!=="pl");
+    $("albdel").hidden=(view.t!=="artist");
   }
   function plCreate(){
     var n=window.prompt("Nom de la playlist ?"); if(!n||!n.trim()) return null;
@@ -1573,6 +1576,14 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     var p=plGet(view.k); if(!p) return;
     if(!window.confirm("Supprimer la playlist « "+p.name+" » ? Les titres restent dans l'application.")) return;
     p.del=true; p.items=[]; p.ts=Date.now(); plSave();
+    view={t:"all",k:""}; viewSave(); renderList();
+  });
+  $("albdel").addEventListener("click",function(){
+    if(view.t!=="artist") return;
+    var k=view.k, n=0;
+    tracks.forEach(function(t){if((t.artist||"Divers")===k) n++});
+    if(!n||!window.confirm("Supprimer l'album « "+k+" » ("+n+" titre"+(n>1?"s":"")+") de l'application ?")) return;
+    for(var i=tracks.length-1;i>=0;i--) if((tracks[i].artist||"Divers")===k) removeTrack(i);
     view={t:"all",k:""}; viewSave(); renderList();
   });
   $("pladdall").addEventListener("click",function(){

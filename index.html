@@ -161,7 +161,7 @@ canvas#viz{width:100%;height:clamp(90px,17vh,240px);display:block;border-radius:
 
 .addrow{display:flex;flex-wrap:wrap;gap:8px}
 .addrow .pick,.addrow .addbtn{flex:1 1 auto;white-space:nowrap}
-#plbtns{flex-wrap:nowrap}#plbtns .pick{flex:1 1 0;min-width:0;padding-inline:6px}
+.btnrow{flex-wrap:nowrap}.btnrow .pick,.btnrow .addbtn{flex:1 1 0;min-width:0;padding:5px 6px;min-height:36px;font-size:.8rem;white-space:normal;line-height:1.15;text-align:center;display:flex;align-items:center;justify-content:center}
 .addrow .addbtn{display:grid;place-items:center}
 @media (min-width:900px) and (min-height:520px){
   .center{grid-template-rows:minmax(0,1fr) auto}
@@ -416,10 +416,10 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       </div>
 
       <div id="p-file" class="row" hidden>
-        <div class="addrow"><label class="addbtn">Ajouter des fichiers audio<input id="file" type="file" multiple></label><button class="pick" id="clearpl" type="button">Effacer la playlist</button><button class="pick" id="gdsync" type="button">Synchroniser Drive</button></div>
-        <div class="addrow" id="plbtns"><button class="pick sm" id="plnew" type="button">Nouvelle playlist</button><button class="pick sm" id="pldel" type="button" hidden>Supprimer la playlist</button><button class="pick sm" id="albdel" type="button" hidden>Supprimer l'album</button></div>
+        <div class="addrow btnrow" id="plbtns"><button class="pick sm" id="plnew" type="button">Playlist</button><button class="pick sm" id="pladdall" type="button">Ajouter à Playlist</button><button class="pick sm" id="plren" type="button">Modifier</button><button class="pick sm" id="pldel" type="button">Supprimer Playlist</button></div>
+        <div class="addrow btnrow" id="albbtns"><label class="addbtn sm">Ajouter Album<input id="file" type="file" multiple></label><button class="pick sm" id="albdel" type="button">Supprimer Album</button><button class="pick sm" id="gdsync" type="button">Synchro Drive</button><button class="pick" id="clearpl" type="button" hidden>Effacer la playlist</button></div>
         <div class="plrow"><select id="viewsel" aria-label="Choisir un artiste ou une playlist"></select></div>
-        <div class="plrow" id="pltgrow" hidden><select id="pltarget" aria-label="Playlist où ajouter les titres"></select><button class="pick sm" id="pladdall" type="button">Tout ajouter</button></div>
+        <div class="plrow" id="pltgrow" hidden><select id="pltarget" aria-label="Playlist où ajouter les titres"></select></div>
         <div class="now" id="now">Aucun fichier</div>
         <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Position dans le morceau">
         <div class="times"><span id="tcur">0:00</span><span id="tdur">0:00</span></div>
@@ -1534,9 +1534,6 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     tg.innerHTML=pls.map(function(p){return '<option value="'+gdEsc(p.id)+'">Ajouter à : '+gdEsc(p.name)+'</option>'}).join("");
     if(cur&&plGet(cur)) tg.value=cur;
     $("pltgrow").hidden=!pls.length;
-    $("pladdall").hidden=(view.t==="pl");
-    $("pldel").hidden=(view.t!=="pl");
-    $("albdel").hidden=(view.t!=="artist");
   }
   function plCreate(){
     var n=window.prompt("Nom de la playlist ?"); if(!n||!n.trim()) return null;
@@ -1550,7 +1547,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     list.forEach(function(t){var k=gdName(t); if(p.items.indexOf(k)<0){p.items.push(k);n++}});
     p.ts=Date.now(); plSave(); renderList();
     $("pltarget").value=p.id;
-    say(n+" titre"+(n>1?"s":"")+" ajouté"+(n>1?"s":"")+" à « "+p.name+" ».");
+    say(n?n+" titre"+(n>1?"s":"")+" ajouté"+(n>1?"s":"")+" à « "+p.name+" ».":"Déjà dans « "+p.name+" ».");
   }
   function plRemove(t){
     var p=plGet(view.k); if(!p) return;
@@ -1572,14 +1569,36 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     view={t:"pl",k:p.id}; viewSave(); renderList();
     say("Playlist « "+p.name+" » créée : utilise + sur les titres pour les ajouter.");
   });
+  function curPl(){return view.t==="pl"?plGet(view.k):plGet($("pltarget").value)}
   $("pldel").addEventListener("click",function(){
-    var p=plGet(view.k); if(!p) return;
+    var p=curPl(); if(!p){say("Aucune playlist à supprimer.");return}
     if(!window.confirm("Supprimer la playlist « "+p.name+" » ? Les titres restent dans l'application.")) return;
     p.del=true; p.items=[]; p.ts=Date.now(); plSave();
-    view={t:"all",k:""}; viewSave(); renderList();
+    if(view.t==="pl") view={t:"all",k:""}; viewSave(); renderList();
+  });
+  $("plren").addEventListener("click",function(){
+    if(view.t==="artist"){
+      var old=view.k, n=window.prompt("Nouveau nom de l'album ?",old); if(!n||!n.trim()) return;
+      n=gdClean(n); if(n===old) return;
+      var map={};
+      tracks.forEach(function(t){
+        if((t.artist||"Divers")!==old) return;
+        var o=gdName(t); gdSkip(t); t.artist=n; map[o]=gdName(t); pUpd(t);
+      });
+      PL.forEach(function(p){
+        var ch=false;
+        p.items=p.items.map(function(k){if(map[k]){ch=true;return map[k]}return k});
+        if(ch) p.ts=Date.now();
+      });
+      plSave(); view={t:"artist",k:n}; viewSave(); renderList();
+      return;
+    }
+    var p=curPl(); if(!p){say("Aucune playlist à modifier.");return}
+    var n2=window.prompt("Nouveau nom de la playlist ?",p.name); if(!n2||!n2.trim()) return;
+    p.name=n2.trim().slice(0,60); p.ts=Date.now(); plSave(); renderList();
   });
   $("albdel").addEventListener("click",function(){
-    if(view.t!=="artist") return;
+    if(view.t!=="artist"){say("Choisis d'abord un artiste dans le menu.");return}
     var k=view.k, n=0;
     tracks.forEach(function(t){if((t.artist||"Divers")===k) n++});
     if(!n||!window.confirm("Supprimer l'album « "+k+" » ("+n+" titre"+(n>1?"s":"")+") de l'application ?")) return;

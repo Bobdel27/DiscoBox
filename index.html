@@ -416,7 +416,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       </div>
 
       <div id="p-file" class="row" hidden>
-        <div class="addrow btnrow" id="plbtns"><button class="pick sm" id="plnew" type="button">Playlist</button><button class="pick sm" id="pladdall" type="button">Ajouter à Playlist</button><button class="pick sm" id="plren" type="button">Modifier</button><button class="pick sm" id="pldel" type="button">Supprimer Playlist</button></div>
+        <div class="addrow btnrow" id="plbtns"><button class="pick sm" id="plnew" type="button">Playlist</button><label class="addbtn sm">Ajouter à Playlist<input id="filepl" type="file" multiple></label><button class="pick sm" id="plren" type="button">Modifier</button><button class="pick sm" id="pldel" type="button">Supprimer Playlist</button></div>
         <div class="addrow btnrow" id="albbtns"><label class="addbtn sm">Ajouter Album<input id="file" type="file" multiple></label><button class="pick sm" id="albdel" type="button">Supprimer Album</button><button class="pick sm" id="gdsync" type="button">Synchro Drive</button><button class="pick" id="clearpl" type="button" hidden>Effacer la playlist</button></div>
         <div class="plrow"><select id="viewsel" aria-label="Choisir un artiste ou une playlist"></select></div>
         <div class="plrow" id="pltgrow" hidden><select id="pltarget" aria-label="Playlist où ajouter les titres"></select></div>
@@ -928,18 +928,32 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     var pos=v.indexOf(idx);
     loadTrack(pos>0?v[pos-1]:v[v.length-1],true);
   }
-  $("file").addEventListener("change",function(){
-    var fl=Array.prototype.slice.call(this.files||[]).filter(function(f){return /^audio\//.test(f.type)||/\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|aif|aiff|caf|mp4|wma|weba)$/i.test(f.name)}); if(!fl.length) return;
+  function addFiles(inp,pl){
+    var fl=Array.prototype.slice.call(inp.files||[]).filter(function(f){return /^audio\//.test(f.type)||/\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|aif|aiff|caf|mp4|wma|weba)$/i.test(f.name)}); if(!fl.length) return;
     init();
-    this.value="";
+    inp.value="";
     say("Copie des fichiers en mémoire…");
     Promise.all(fl.map(function(f){return f.arrayBuffer().then(function(buf){return {name:f.name,artist:gdArtistFrom(buf,f.name),blob:new Blob([buf],{type:f.type||mimeOf(f.name)})}})})).then(function(rs){
-      var have={}; tracks.forEach(function(x){have[gdName(x)]=x});
-      rs.forEach(function(r){var nm=(r.artist||"Divers")+"/"+r.name;if(have[nm]){if(have[nm].hid){have[nm].hid=false;pUpd(have[nm])}return}have[nm]=1;var t={name:r.name.replace(/\.[^.]+$/,""),fname:r.name,artist:r.artist,blob:r.blob,url:URL.createObjectURL(r.blob)};tracks.push(t);pAdd(t,r.blob);gdBack(t)});
+      var have={}, n=0; tracks.forEach(function(x){have[gdName(x)]=x});
+      rs.forEach(function(r){
+        var nm=(r.artist||"Divers")+"/"+r.name, t=have[nm];
+        if(t){ if(!pl&&t.hid){t.hid=false;pUpd(t)} }
+        else{
+          t={name:r.name.replace(/\.[^.]+$/,""),fname:r.name,artist:r.artist,hid:!!pl,blob:r.blob,url:URL.createObjectURL(r.blob)};
+          tracks.push(t);pAdd(t,r.blob);gdBack(t);have[nm]=t;
+        }
+        if(pl&&pl.items.indexOf(nm)<0){pl.items.push(nm);n++}
+      });
+      if(pl){pl.ts=Date.now();plSave();renderList();say(n?n+" titre"+(n>1?"s":"")+" ajouté"+(n>1?"s":"")+" à « "+pl.name+" ».":"Déjà dans « "+pl.name+" ».");return}
       if(idx<0) loadTrack(0,false); else renderList();
       say(tracks.length+" fichier"+(tracks.length>1?"s":"")+" dans la liste.");
     }).catch(function(){say("Lecture du fichier impossible.")});
+  }
+  $("file").addEventListener("change",function(){addFiles(this,null)});
+  $("filepl").addEventListener("click",function(e){
+    if(!plGet($("pltarget").value)){e.preventDefault();say(plLive().length?"Choisis d'abord une playlist dans « Ajouter à ».":"Crée d'abord une playlist.")}
   });
+  $("filepl").addEventListener("change",function(){addFiles(this,plGet($("pltarget").value))});
   $("prev").addEventListener("click",function(){init();prevTrack()});
   $("next").addEventListener("click",function(){init();nextTrack(false)});
   $("loop").addEventListener("click",function(){
@@ -1262,7 +1276,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       r.onerror=function(){done()};
     }catch(e){done()}
   }
-  function pAdd(t,blob){if(!pdb)return;try{var r=pStore("readwrite").add({name:t.name,fname:t.fname,artist:t.artist,blob:blob});r.onsuccess=function(){t.key=r.result}}catch(e){}}
+  function pAdd(t,blob){if(!pdb)return;try{var r=pStore("readwrite").add({name:t.name,fname:t.fname,artist:t.artist,hid:!!t.hid,blob:blob});r.onsuccess=function(){t.key=r.result}}catch(e){}}
   function pLoad(){
     if(!pdb)return;
     try{
@@ -1617,14 +1631,6 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     if(!n||!window.confirm("Supprimer l'album « "+k+" » ("+n+" titre"+(n>1?"s":"")+") ? Les titres présents dans une playlist y restent.")) return;
     for(var i=tracks.length-1;i>=0;i--) if(!tracks[i].hid&&(tracks[i].artist||"Divers")===k) dropFromAlbum(i);
     view={t:"all",k:""}; viewSave(); renderList();
-  });
-  $("pladdall").addEventListener("click",function(){
-    var p=plGet($("pltarget").value);
-    if(!p){say("Choisis d'abord une playlist dans « Ajouter à ».");return}
-    if(view.t==="pl"){say("Choisis « Tous les titres » ou un album pour ajouter des titres.");return}
-    var l=vList().map(function(i){return tracks[i]}); if(!l.length) return;
-    if(l.length>1&&!window.confirm("Ajouter "+l.length+" titres à « "+p.name+" » ?")) return;
-    plAdd(l);
   });
   function gdSyncPl(plmeta,root){
     return (plmeta?gdFetch(GD_API+"/"+plmeta.id+"?alt=media").then(function(r){return r.json()}).catch(function(){return[]}):Promise.resolve([])).then(function(rp){

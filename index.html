@@ -575,7 +575,8 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   function init(){
     if(ctx) return;
     var AC=window.AudioContext||window.webkitAudioContext;
-    ctx=new AC();
+    var ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+    try{ctx=ios?new AC({sampleRate:44100}):new AC()}catch(e){ctx=new AC()}
 
     eqF=BANDS.map(function(f,i){
       var b=ctx.createBiquadFilter(); b.type=bandType(i); b.frequency.value=bandFreq(i);
@@ -932,7 +933,8 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     this.value="";
     say("Copie des fichiers en mémoire…");
     Promise.all(fl.map(function(f){return f.arrayBuffer().then(function(buf){return {name:f.name,artist:gdArtistFrom(buf,f.name),blob:new Blob([buf],{type:f.type||mimeOf(f.name)})}})})).then(function(rs){
-      rs.forEach(function(r){var t={name:r.name.replace(/\.[^.]+$/,""),fname:r.name,artist:r.artist,blob:r.blob,url:URL.createObjectURL(r.blob)};tracks.push(t);pAdd(t,r.blob);gdBack(t)});
+      var have={}; tracks.forEach(function(x){have[gdName(x)]=1});
+      rs.forEach(function(r){if(have[(r.artist||"Divers")+"/"+r.name])return;have[(r.artist||"Divers")+"/"+r.name]=1;var t={name:r.name.replace(/\.[^.]+$/,""),fname:r.name,artist:r.artist,blob:r.blob,url:URL.createObjectURL(r.blob)};tracks.push(t);pAdd(t,r.blob);gdBack(t)});
       if(idx<0) loadTrack(0,false); else renderList();
       say(tracks.length+" fichier"+(tracks.length>1?"s":"")+" dans la liste.");
     }).catch(function(){say("Lecture du fichier impossible.")});
@@ -1278,7 +1280,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   }
   $("clearpl").addEventListener("click",function(){
     pauseAll(); try{localStorage.removeItem("enceintes.resume")}catch(e){}
-    tracks.forEach(function(t){URL.revokeObjectURL(t.url)});
+    tracks.forEach(function(t){URL.revokeObjectURL(t.url);gdSkip(t)});
     tracks=[]; idx=-1;
     aud.removeAttribute("src"); aud.load();
     $("now").textContent="Aucun fichier";

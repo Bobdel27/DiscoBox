@@ -575,8 +575,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   function init(){
     if(ctx) return;
     var AC=window.AudioContext||window.webkitAudioContext;
-    var ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
-    try{ctx=new AC({sampleRate:44100})}catch(e){ctx=new AC()}
+    ctx=new AC();
 
     eqF=BANDS.map(function(f,i){
       var b=ctx.createBiquadFilter(); b.type=bandType(i); b.frequency.value=bandFreq(i);

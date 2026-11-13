@@ -1437,6 +1437,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   function gdSkip(t){var n=gdName(t),l=gdSkipList();if(l.indexOf(n)<0){l.push(n);gdPut("enceintes.gdskip",l)}gdPut("enceintes.gdback",gdGet("enceintes.gdback").filter(function(x){return x!==n}))}
   function gdBack(t){var n=gdName(t),l=gdGet("enceintes.gdback");gdPut("enceintes.gdskip",gdSkipList().filter(function(x){return x!==n}));if(l.indexOf(n)<0){l.push(n);gdPut("enceintes.gdback",l)}}
   function gdPatch(id,blob){return gdFetch("https://www.googleapis.com/upload/drive/v3/files/"+id+"?uploadType=media",{method:"PATCH",headers:{"Content-Type":"application/json"},body:blob})}
+  function gdTrash(id){return gdFetch(GD_API+"/"+id+"?fields=id",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:true})})}
   function gdSync(){
     if(gdBusy) return;
     if(!GD_CLIENT_ID){say("ID client Google manquant dans le fichier.");return}
@@ -1473,6 +1474,19 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
         if(same) return;
         var bl=new Blob([JSON.stringify(merged)],{type:"application/json"});
         return meta?gdPatch(meta.id,bl):gdUpload(root,"_supprimes.json",bl);
+      }).then(function(){
+        var gone=entries.filter(function(e){return merged.indexOf(e.path)>=0}), cnt={}, p=Promise.resolve();
+        if(!gone.length) return;
+        entries.forEach(function(e){cnt[e.artist]=(cnt[e.artist]||0)+1});
+        gone.forEach(function(e){
+          cnt[e.artist]--;
+          p=p.then(function(){say("Suppression sur Drive : "+e.name);return gdTrash(e.id)}).then(function(){delete gdMap[e.path]});
+        });
+        Object.keys(cnt).forEach(function(a){
+          if(cnt[a]===0&&folders[a]) p=p.then(function(){return gdTrash(folders[a])}).then(function(){delete folders[a]});
+        });
+        entries=entries.filter(function(e){return merged.indexOf(e.path)<0});
+        return p;
       }).then(function(){
         var known=gdGet("enceintes.gdknown"), ent={};
         entries.forEach(function(e){ent[e.path]=1});
@@ -1585,7 +1599,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     var v=this.value, i=v.indexOf(":");
     view={t:v.slice(0,i),k:v.slice(i+1)}; viewSave(); renderList();
     var l=vList();
-    if(l.length&&!viaKey){init();loadTrack(l[0],true)}
+    
     this.blur();
   });
   var viaKey=false;

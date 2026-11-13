@@ -576,7 +576,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     if(ctx) return;
     var AC=window.AudioContext||window.webkitAudioContext;
     var ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
-    try{ctx=ios?new AC({sampleRate:44100}):new AC()}catch(e){ctx=new AC()}
+    try{ctx=new AC({sampleRate:44100})}catch(e){ctx=new AC()}
 
     eqF=BANDS.map(function(f,i){
       var b=ctx.createBiquadFilter(); b.type=bandType(i); b.frequency.value=bandFreq(i);
@@ -1559,8 +1559,12 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     var v=this.value, i=v.indexOf(":");
     view={t:v.slice(0,i),k:v.slice(i+1)}; viewSave(); renderList();
     var l=vList();
-    if(l.length){init();loadTrack(l[0],true)}
+    if(l.length&&!viaKey){init();loadTrack(l[0],true)}
+    this.blur();
   });
+  var viaKey=false;
+  $("viewsel").addEventListener("keydown",function(){viaKey=true});
+  $("viewsel").addEventListener("pointerdown",function(){viaKey=false});
   $("plnew").addEventListener("click",function(){
     var p=plCreate(); if(!p) return;
     view={t:"pl",k:p.id}; viewSave(); renderList();

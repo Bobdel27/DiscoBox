@@ -1457,6 +1457,16 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
         var bl=new Blob([JSON.stringify(merged)],{type:"application/json"});
         return meta?gdPatch(meta.id,bl):gdUpload(root,"_supprimes.json",bl);
       }).then(function(){
+        var known=gdGet("enceintes.gdknown"), ent={};
+        entries.forEach(function(e){ent[e.path]=1});
+        for(var i=tracks.length-1;i>=0;i--){
+          var n=gdName(tracks[i]);
+          if(known.indexOf(n)>=0&&!ent[n]){
+            removeTrack(i);
+            gdPut("enceintes.gdskip",gdSkipList().filter(function(x){return x!==n}));
+          }
+        }
+      }).then(function(){
         return gdSyncPl(plmeta,root);
       }).then(function(){
         gdPut("enceintes.gdback",[]);
@@ -1480,7 +1490,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
           });
         })});
         return p.then(function(){return total});
-      }).then(function(total){say(total?"Drive synchronisé.":"Drive à jour.")})
+      }).then(function(total){gdPut("enceintes.gdknown",tracks.map(gdName).filter(function(n){return gdMap[n]}));say(total?"Drive synchronisé.":"Drive à jour.")})
       .catch(function(e){if(e&&(e.status===401||e.status===403))gdTok=null;say("Erreur Drive : "+((e&&e.message)||"échec"))})
       .then(function(){gdBusy=false;gdBtn()});
     })});

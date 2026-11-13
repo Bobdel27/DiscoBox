@@ -1544,7 +1544,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     var v=this.value, i=v.indexOf(":");
     view={t:v.slice(0,i),k:v.slice(i+1)}; viewSave(); renderList();
     var l=vList();
-    if(aud.paused&&l.length&&l.indexOf(idx)<0) loadTrack(l[0],false);
+    if(l.length){init();loadTrack(l[0],true)}
   });
   $("plnew").addEventListener("click",function(){
     var p=plCreate(); if(!p) return;

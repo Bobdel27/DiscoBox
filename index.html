@@ -561,7 +561,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     <ul>
       <li><b>Vu-mètre</b> : deux cadrans (gauche et droite) avec aiguille, de -20 à +3 VU. La zone rouge indique un son très fort.</li>
       <li><b>Lumières</b> : une barre de trois ampoules au-dessus et une en dessous de chaque enceinte (haut gauche : rouge, jaune, verte ; bas droite : verte, jaune, rouge ; haut droite : blanche, rouge, bleue ; bas gauche : bleue, rouge, blanche). Les boutons « Lumière H » et « Lumière B » sous l'enceinte gauche allument ou éteignent les barres du haut et du bas, « Stroboscope » active le stroboscope, « Plein écran » affiche l'application en plein écran (ce bouton n'existe pas sur iPhone). Elles clignotent en rythme avec la musique, chacune sur une plage de fréquences.</li>
-      <li><b>Plein écran</b> : trois rampes supplémentaires apparaissent (haut gauche, haut droite, bas droite, couleurs inversées) et un panneau lumière se place en bas à gauche. Ses boutons rouges (Lumière H, Lumière B, Stroboscope) commandent les lumières habituelles, les deux boutons orange <b>Rampes H</b> et <b>Rampes B</b> allument les nouvelles rampes du haut et du bas, le bouton vert quitte le plein écran. Le curseur règle l'intensité du stroboscope. Touches : H (haut), B (bas), S (stroboscope), C (plein écran).</li>
+      <li><b>Plein écran</b> : trois rampes supplémentaires apparaissent (haut gauche, haut droite, bas droite, couleurs inversées) et un panneau lumière se place en bas à gauche. Ses boutons rouges (Lumière H, Lumière B, Stroboscope) commandent les lumières habituelles, les deux boutons orange <b>Rampes H</b> et <b>Rampes B</b> allument les nouvelles rampes du haut et du bas, le bouton vert quitte le plein écran. Le curseur règle l'intensité du stroboscope. Touches : H (haut), B (bas), S (stroboscope), G (rampes du haut), V (rampe du bas), C (plein écran).</li>
 
     </ul>
     <h3>Mode Tonalité</h3>
@@ -572,6 +572,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       <li><b>↑ / ↓</b> : volume + / −</li>
       <li><b>← / →</b> : morceau précédent / suivant</li>
       <li><b>H</b> / <b>B</b> / <b>S</b> : lumières haut / lumières bas / stroboscope</li>
+      <li><b>G</b> / <b>V</b> : nouvelles rampes du haut / du bas (plein écran)</li>
       <li><b>C</b> : plein écran</li>
     </ul>
   </div>
@@ -1797,6 +1798,10 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       $("vol").value=v; $("vol").dispatchEvent(new Event("input",{bubbles:true}));
     }else if(e.key==="c"||e.key==="C"){
       e.preventDefault(); toggleFS();
+    }else if(e.key==="g"||e.key==="G"){
+      e.preventDefault(); document.body.classList.toggle("no-ctop");
+    }else if(e.key==="v"||e.key==="V"){
+      e.preventDefault(); document.body.classList.toggle("no-cbot");
     }else if(/^[hbs]$/i.test(e.key)){
       e.preventDefault();
       var bs=document.querySelectorAll(".lbtns:not(.ghost) .lb"), k=e.key.toLowerCase();

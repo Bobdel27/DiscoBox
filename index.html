@@ -260,6 +260,26 @@ body.lights:not(.no-top) .topbar:not(.bot),body.lights:not(.no-bot) .topbar.bot{
 .lbtns button{font-size:.85rem;padding:.35rem .8rem}
 .topbar.bot{margin-bottom:0;margin-top:2.5%}
 .topbar .tb{width:27%;aspect-ratio:1;border-radius:50%;box-shadow:none}
+/* Barres d'angle : plein écran uniquement */
+.topbar.corner{display:none;position:fixed;width:clamp(90px,10vw,220px);margin:0;z-index:5;pointer-events:none}
+body.fs-on .topbar.corner{display:flex}
+.topbar.corner.c-tl{top:10px;left:10px}
+.topbar.corner.c-tr{top:10px;right:10px}
+.topbar.corner.c-br{bottom:10px;right:10px}
+.topbar.corner{visibility:hidden!important}
+body.lights:not(.no-ctop) .topbar.corner:not(.bot){visibility:visible!important}
+body.lights:not(.no-cbot) .topbar.corner.bot{visibility:visible!important}
+/* Panneau de contrôle lumière : plein écran uniquement, en surimpression */
+.lbtns.lpanel{display:none;position:fixed;z-index:6;flex-direction:column;align-items:stretch;gap:.5rem;margin:0;padding:.5rem;border-radius:12px;box-sizing:border-box;background:rgba(10,14,16,.82);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+body.fs-on .lbtns.lpanel{display:flex}
+.lbtns.lpanel .lrow{flex:1 1 0;min-height:0;gap:.5rem}
+.lbtns.lpanel .sint{flex:0 0 auto;font-size:.7rem}
+.lbtns.lpanel .lrow button.lb{flex:1 1 0;min-height:0;padding:.1rem .2rem;font-size:var(--fs,.8rem);font-weight:700;line-height:1.1;white-space:normal;border-width:2px;border-style:solid;border-color:var(--c);color:var(--c);background:color-mix(in srgb,var(--c) 14%,#0b0f11)}
+.lbtns.lpanel .lrow button.lb.rd{--c:#e5242b;--c2:#8f1419}
+.lbtns.lpanel .lrow button.lb.or{--c:#ff8a1f;--c2:#a85200}
+.lbtns.lpanel .lrow button.lb.gr{--c:#1fa64a;--c2:#0f6b2d}
+.lbtns.lpanel .lrow button.lb[aria-pressed="true"]{background:var(--c);color:#fff;border-color:var(--c2);box-shadow:0 0 14px 3px color-mix(in srgb,var(--c) 70%,transparent),inset 0 0 0 1px rgba(255,255,255,.25)}
+body.fs-on .cabwrap.L .lbtns{visibility:hidden}
 @media (max-width:899px){.topbar,.strobe{--h:min(52vh,70vw*1.6)}}
 @media (min-width:900px) and (min-height:520px){.cab,.topbar,.strobe{--h:calc((100vh - 24px)*.8)}}
 
@@ -500,11 +520,25 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   <div class="hbody">
     <h3>Écouter de la musique</h3>
     <ol>
-      <li>Clique sur <b>Fichiers audio</b>, puis <b>Ajouter des fichiers audio</b> et choisis tes morceaux.</li>
+      <li>Clique sur <b>Fichiers audio</b>, puis <b>Ajouter Album</b> et choisis tes morceaux sur ton PC. Ils sont rangés par artiste.</li>
       <li>Appuie sur <b>Lecture</b>. Clique sur un titre de la liste pour le jouer, sur <b>✕</b> pour le retirer.</li>
-      <li><b>Effacer la playlist</b> vide toute la liste.</li>
     </ol>
-    <p>La playlist, le dernier morceau (à la seconde près) et tous tes réglages sont gardés en mémoire : tu les retrouves à la réouverture, il suffit d'appuyer sur Lecture.</p>
+    <p>Les titres, le dernier morceau (à la seconde près) et tous tes réglages sont gardés en mémoire : tu les retrouves à la réouverture, il suffit d'appuyer sur Lecture.</p>
+    <h3>Albums et playlists</h3>
+    <ul>
+      <li>Le menu sous les boutons choisit ce qui est affiché : <b>Tous les titres</b>, un artiste (album) ou une playlist. Il change seulement la liste, la musique ne démarre pas toute seule.</li>
+      <li><b>Playlist</b> crée une playlist. Aucun titre n'y entre sans ton choix : choisis d'abord la playlist dans « Ajouter à : … ».</li>
+      <li><b>Ajouter à Playlist</b> ouvre ton PC : les titres choisis vont dans la playlist, sans apparaître dans les albums. Le <b>+</b> à côté d'un titre l'ajoute aussi à la playlist choisie.</li>
+      <li><b>Modifier</b> renomme la playlist, ou l'album quand un artiste est affiché.</li>
+      <li><b>Supprimer Playlist</b> supprime la playlist. <b>Supprimer Album</b> supprime l'album affiché.</li>
+      <li>Playlists et albums sont indépendants : un titre d'un album supprimé reste dans sa playlist, et un titre retiré de sa dernière playlist disparaît s'il n'a plus d'album.</li>
+    </ul>
+    <h3>Synchro Drive</h3>
+    <ul>
+      <li><b>Synchro Drive</b> échange tes titres et tes playlists avec le dossier « Disco Box » de ton Google Drive (un dossier par artiste). Elle ne se fait que par ce bouton, F5 ne synchronise pas.</li>
+      <li>Les suppressions sont répercutées : un album supprimé ici part dans la corbeille de Drive, et ce que tu supprimes dans Drive disparaît de l'application.</li>
+      <li>Laisse la synchronisation finir avant de recharger la page.</li>
+    </ul>
     <h3>Lecture</h3>
     <ul>
       <li><b>Boucle</b> : non, liste entière ou un seul titre.</li>
@@ -526,7 +560,9 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     <h3>Vu-mètre</h3>
     <ul>
       <li><b>Vu-mètre</b> : deux cadrans (gauche et droite) avec aiguille, de -20 à +3 VU. La zone rouge indique un son très fort.</li>
-      <li><b>Lumières</b> : une barre de trois ampoules au-dessus et une en dessous de chaque enceinte (haut gauche : rouge, jaune, verte ; bas droite : verte, jaune, rouge ; haut droite : blanche, rouge, bleue ; bas gauche : bleue, rouge, blanche. Les boutons « Lumière H » et « Lumière B » sous l'enceinte gauche allument ou éteignent les barres du haut et du bas, « Stroboscope » active le stroboscope, « Plein écran » affiche l'application en plein écran ; ce bouton n'existe pas sur iPhone). Elles clignotent en rythme avec la musique, chacune sur une plage de fréquences. Touches : H (haut), B (bas), S (stroboscope).</li>
+      <li><b>Lumières</b> : une barre de trois ampoules au-dessus et une en dessous de chaque enceinte (haut gauche : rouge, jaune, verte ; bas droite : verte, jaune, rouge ; haut droite : blanche, rouge, bleue ; bas gauche : bleue, rouge, blanche). Les boutons « Lumière H » et « Lumière B » sous l'enceinte gauche allument ou éteignent les barres du haut et du bas, « Stroboscope » active le stroboscope, « Plein écran » affiche l'application en plein écran (ce bouton n'existe pas sur iPhone). Elles clignotent en rythme avec la musique, chacune sur une plage de fréquences.</li>
+      <li><b>Plein écran</b> : trois rampes supplémentaires apparaissent (haut gauche, haut droite, bas droite, couleurs inversées) et un panneau lumière se place en bas à gauche. Ses boutons rouges (Lumière H, Lumière B, Stroboscope) commandent les lumières habituelles, les deux boutons orange <b>Rampes H</b> et <b>Rampes B</b> allument les nouvelles rampes du haut et du bas, le bouton vert quitte le plein écran. Le curseur règle l'intensité du stroboscope. Touches : H (haut), B (bas), S (stroboscope), C (plein écran).</li>
+
     </ul>
     <h3>Mode Tonalité</h3>
     <p>Génère un son de test (fréquence et forme d'onde au choix) pour vérifier les enceintes, la balance ou l'égaliseur. Ce n'est pas fait pour écouter de la musique.</p>
@@ -1159,12 +1195,25 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   }
   mkBar("L",TB.LT,"top"); mkBar("L",TB.LB,"bot");
   mkBar("R",TB.RT,"top"); mkBar("R",TB.RB,"bot");
+  /* Barres d'angle (plein écran) : couleurs inversées */
+  function mkCorner(k,set,pos,cls){
+    var bar=document.createElement("div"); bar.className="topbar corner "+cls+(pos==="bot"?" bot":""); bar.setAttribute("aria-hidden","true");
+    set.forEach(function(c){
+      var e=document.createElement("span"); e.className="tb";
+      var o={e:e,c:c,avg:0,s:0,v:0,off:"hsl("+c.h+","+Math.round(c.s*.5)+"%,"+(c.s?24:26)+"%)"};
+      e.style.background=o.off; bar.appendChild(e); tbs[k].push(o);
+    });
+    document.body.appendChild(bar);
+  }
+  mkCorner("L",[CW,CR,CB],"top","c-tl");
+  mkCorner("R",[CB,CR,CW],"top","c-tr");
+  mkCorner("R",[CR,CY,CG],"bot","c-br");
   /* Boutons lumière haut / bas / stroboscope sous l'enceinte gauche */
   var strobeEl=document.createElement("div"); strobeEl.className="strobe"; strobeEl.setAttribute("aria-hidden","true");
   var sCells=[]; for(var si=0;si<1;si++){var ie=document.createElement("i"); strobeEl.appendChild(ie); sCells.push(ie)}
   document.querySelector(".cabwrap.R").insertBefore(strobeEl,document.querySelector(".cabwrap.R").firstChild);
   (function(){var g=document.createElement("div"); g.className="strobe ghost"; g.setAttribute("aria-hidden","true"); var L=document.querySelector(".cabwrap.L"); L.insertBefore(g,L.firstChild)})();
-  document.body.classList.add("no-top","no-bot");
+  document.body.classList.add("no-top","no-bot","no-ctop","no-cbot");
   var sInt=90; var sflash=document.createElement("div"); sflash.id="sflash"; document.body.appendChild(sflash);
   var fsBtn=null;
   function toggleFS(){
@@ -1172,7 +1221,41 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     if(fe){(document.exitFullscreen||document.webkitExitFullscreen).call(document)}
     else if(de.requestFullscreen||de.webkitRequestFullscreen){(de.requestFullscreen||de.webkitRequestFullscreen).call(de)}
   }
-  function fsSync(){if(fsBtn)fsBtn.setAttribute("aria-pressed",!!(document.fullscreenElement||document.webkitFullscreenElement))}
+  function cornerSize(){
+    var ref=document.querySelector(".topbar:not(.corner)"); if(!ref) return;
+    var w=ref.getBoundingClientRect().width; if(!w) return;
+    Array.prototype.forEach.call(document.querySelectorAll(".topbar.corner"),function(b){b.style.width=w+"px"});
+    [["c-tl","L"],["c-tr","R"]].forEach(function(x){
+      var b=document.querySelector(".topbar.corner."+x[0]), r=document.querySelector(".cabwrap."+x[1]+" .topbar:not(.bot):not(.corner)");
+      if(!b||!r) return;
+      var q=r.getBoundingClientRect(), h=w/3.5;
+      b.style.right="auto"; b.style.left=q.left+"px"; b.style.top=Math.max(0,q.top-h-2)+"px";
+    });
+    var ob0=document.querySelector(".cabwrap.L .lbtns"), bl=document.querySelector(".cabwrap.L .topbar.bot:not(.corner)");
+    if(ob0&&bl&&lpanel){
+      var qo=ob0.getBoundingClientRect(), ql=bl.getBoundingClientRect();
+      lpanel.style.width=ql.width+"px"; lpanel.style.left=ql.left+"px";
+      var cr=cabEl.L.getBoundingClientRect(), gap=Math.max(4,ql.top-cr.bottom), top=ql.bottom+gap,
+          mb=(document.querySelector("main")||document.body).getBoundingClientRect().bottom,
+          ph=Math.max(60,Math.min(mb,window.innerHeight-4)-top), f=parseFloat(getComputedStyle(document.documentElement).fontSize)||16,
+          pad=.5*f, g=.5*f, sl=1.4*f, rowH=(ph-2*pad-2*g-sl)/2, btnW=(ql.width-2*pad-2*g)/3;
+      lpanel.style.top=top+"px"; lpanel.style.height=ph+"px";
+      lpanel.style.setProperty("--fs",Math.max(8,Math.min(rowH*.38,btnW/6.8,f*1.3))+"px");
+    }
+    var bb=document.querySelector(".topbar.corner.c-br"), br=document.querySelector(".cabwrap.R .topbar.bot:not(.corner)");
+    if(bb&&br){
+      var qb=br.getBoundingClientRect(), hb=w/3.5;
+      bb.style.right="auto"; bb.style.bottom="auto"; bb.style.left=qb.left+"px";
+      bb.style.top=Math.min(window.innerHeight-hb,qb.bottom+Math.max(4,w*.03))+"px";
+    }
+  }
+  function fsSync(){
+    var on=!!(document.fullscreenElement||document.webkitFullscreenElement);
+    if(fsBtn)fsBtn.setAttribute("aria-pressed",on);
+    document.body.classList.toggle("fs-on",on);
+    cornerSize(); setTimeout(cornerSize,150); setTimeout(cornerSize,600);
+  }
+  window.addEventListener("resize",cornerSize);
   document.addEventListener("fullscreenchange",fsSync); document.addEventListener("webkitfullscreenchange",fsSync);
   (function(){
     ["L","R"].forEach(function(k){
@@ -1201,6 +1284,35 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       lab.appendChild(r); d.appendChild(lab);
       document.querySelector(".cabwrap."+k).appendChild(d);
     });
+  })();
+  var lpanel=document.createElement("div"); lpanel.className="lbtns lpanel"; lpanel.setAttribute("aria-label","Panneau lumière");
+  (function(){
+    var B=document.body.classList, ob=document.querySelectorAll(".cabwrap.L .lrow button.lb"), items=[];
+    function tg(c){return function(){B.toggle(c)}}
+    var defs=[
+      [["Lumière H",function(){ob[0].click()},function(){return !B.contains("no-top")},"rd"],
+       ["Lumière B",function(){ob[1].click()},function(){return !B.contains("no-bot")},"rd"],
+       ["Stroboscope",function(){ob[2].click()},function(){return B.contains("strobe-on")},"rd"]],
+      [["Rampes H",tg("no-ctop"),function(){return !B.contains("no-ctop")},"or"],
+       ["Rampes B",tg("no-cbot"),function(){return !B.contains("no-cbot")},"or"],
+       ["Plein écran",function(){toggleFS()},function(){return B.contains("fs-on")},"fs gr"]]
+    ];
+    defs.forEach(function(r){
+      var row=document.createElement("div"); row.className="lrow";
+      r.forEach(function(x){
+        var b=document.createElement("button"); b.type="button"; b.className="lb"+(x[3]?" "+x[3]:""); b.textContent=x[0];
+        b.setAttribute("aria-pressed","false"); b.addEventListener("click",x[1]); row.appendChild(b); items.push([b,x[2]]);
+      });
+      lpanel.appendChild(row);
+    });
+    var lab=document.createElement("label"); lab.className="sint"; lab.appendChild(document.createTextNode("Intensité stroboscope"));
+    var rg=document.createElement("input"); rg.type="range"; rg.min=10; rg.max=100; rg.value=sInt; rg.setAttribute("aria-label","Intensité du stroboscope");
+    rg.addEventListener("input",function(){sInt=+rg.value; var o=document.querySelector(".cabwrap.L .sint input"); if(o) o.value=rg.value});
+    lab.appendChild(rg); lpanel.appendChild(lab);
+    document.body.appendChild(lpanel);
+    function sync(){items.forEach(function(x){x[0].setAttribute("aria-pressed",!!x[1]())})}
+    new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:["class"]});
+    sync();
   })();
   var st={avg:0,vr:100,pv:0,t:0,k:1.5,act:0,last:0,on:0};
   function strobeUpdate(){

@@ -1556,7 +1556,9 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     if(!GD_CLIENT_ID){say("ID client Google manquant dans le fichier.");return}
     gdBusy=true; gdBtn(); say("Connexion à Drive…");
     gdLoad(function(){gdAuth(function(){
-      var root, entries=[], meta=null, plmeta=null, merged, folders={};
+      var root, entries=[], meta=null, plmeta=null, merged, folders={}, localSkip=[];
+      try{if(!localStorage.getItem("enceintes.gdv2")){gdPut("enceintes.gdskip",[]);localStorage.setItem("enceintes.gdv2","1")}}catch(e){}
+      localSkip=gdSkipList();
       gdFill().then(function(){return gdFolderId()}).then(function(id){root=id;return gdList(root,"",[])}).then(function(top){
         gdMap={}; var dirs=[];
         top.forEach(function(f){
@@ -1582,13 +1584,12 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
         var back=gdGet("enceintes.gdback");
         merged=rm.concat(gdSkipList()).filter(function(n,i,a){return a.indexOf(n)===i&&back.indexOf(n)<0});
         for(var i=tracks.length-1;i>=0;i--) if(merged.indexOf(gdName(tracks[i]))>=0) removeTrack(i);
-        gdPut("enceintes.gdskip",merged);
         var same=JSON.stringify(rm.slice().sort())===JSON.stringify(merged.slice().sort());
         if(same) return;
         var bl=new Blob([JSON.stringify(merged)],{type:"application/json"});
         return meta?gdPatch(meta.id,bl):gdUpload(root,"_supprimes.json",bl);
       }).then(function(){
-        var gone=entries.filter(function(e){return merged.indexOf(e.path)>=0}), cnt={}, p=Promise.resolve();
+        var gone=entries.filter(function(e){return localSkip.indexOf(e.path)>=0&&merged.indexOf(e.path)>=0}), cnt={}, p=Promise.resolve();
         if(!gone.length) return;
         entries.forEach(function(e){cnt[e.artist]=(cnt[e.artist]||0)+1});
         gone.forEach(function(e){
@@ -1637,7 +1638,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
           });
         })});
         return p.then(function(){return total});
-      }).then(function(total){gdPut("enceintes.gdknown",tracks.map(gdName).filter(function(n){return gdMap[n]}));say(total?"Drive synchronisé.":"Drive à jour.")})
+      }).then(function(total){gdPut("enceintes.gdskip",[]);gdPut("enceintes.gdknown",tracks.map(gdName).filter(function(n){return gdMap[n]}));say(total?"Drive synchronisé.":"Drive à jour.")})
       .catch(function(e){if(e&&(e.status===401||e.status===403))gdTok=null;say("Erreur Drive : "+((e&&e.message)||"échec"))})
       .then(function(){gdBusy=false;gdBtn()});
     })});

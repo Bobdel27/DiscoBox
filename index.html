@@ -526,7 +526,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     <p>Les titres, le dernier morceau (à la seconde près) et tous tes réglages sont gardés en mémoire : tu les retrouves à la réouverture, il suffit d'appuyer sur Lecture.</p>
     <h3>Albums et playlists</h3>
     <ul>
-      <li>Le menu sous les boutons choisit ce qui est affiché : <b>Tous les titres</b>, un artiste (album) ou une playlist. Il change seulement la liste, la musique ne démarre pas toute seule.</li>
+      <li>Le menu sous les boutons choisit ce qui est affiché : <b>Tous les titres</b>, un artiste (album) ou une playlist. Il change seulement la liste, la musique ne démarre pas toute seule : clique sur <b>Lecture</b> pour lancer le premier titre de la liste affichée (playlist ou album), ou clique directement sur un titre.</li>
       <li><b>Playlist</b> crée une playlist. Aucun titre n'y entre sans ton choix : choisis d'abord la playlist dans « Ajouter à : … ».</li>
       <li><b>Ajouter à Playlist</b> ouvre ton PC : les titres choisis vont dans la playlist, sans apparaître dans les albums. Le <b>+</b> à côté d'un titre l'ajoute aussi à la playlist choisie.</li>
       <li><b>Modifier</b> renomme la playlist, ou l'album quand un artiste est affiché.</li>
@@ -535,7 +535,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     </ul>
     <h3>Synchro Drive</h3>
     <ul>
-      <li><b>Synchro Drive</b> échange tes titres et tes playlists avec le dossier « Disco Box » de ton Google Drive (un dossier par artiste). Elle ne se fait que par ce bouton, F5 ne synchronise pas.</li>
+      <li><b>Synchro Drive</b> échange tes titres et tes playlists avec le dossier « Disco Box » de ton Google Drive (un dossier par artiste). Pour ajouter un album depuis Drive, mets un sous-dossier avec les morceaux dans « Disco Box », puis clique sur Synchro Drive. Elle ne se fait que par ce bouton, F5 ne synchronise pas.</li>
       <li>Les suppressions sont répercutées : un album supprimé ici part dans la corbeille de Drive, et ce que tu supprimes dans Drive disparaît de l'application.</li>
       <li>Laisse la synchronisation finir avant de recharger la page.</li>
     </ul>
@@ -584,7 +584,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   var ctx=null, eqF=[], ePre=null, pre=null, sp=null, gL=null, gR=null, mg=null, vol=null;
   var anMain=null, anL=null, toneGain=null, osc=null, mediaSrc=null;
   var ch={L:{},R:{}};
-  var audA=$("aud"), audB=document.createElement("audio"), aud=audA, fx=[], xfading=false, xfTok=0, xfSec=3, resumeT=null, lastSave=0;
+  var viewChg=false, audA=$("aud"), audB=document.createElement("audio"), aud=audA, fx=[], xfading=false, xfTok=0, xfSec=3, resumeT=null, lastSave=0;
   audB.preload="auto"; audB.id="aud2"; document.body.appendChild(audB);
   function pauseAll(){audA.pause();audB.pause()}
   var mode="tone", toneOn=false, tracks=[], idx=-1, loopMode=0, seeking=false;
@@ -939,6 +939,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   }
   function loadTrack(i,play,keep){
     if(i<0||i>=tracks.length) return;
+    viewChg=false;
     if(!keep) resetFx();
     idx=i; aud.src=tracks[i].url; aud.loop=(loopMode===2);
     $("now").textContent=tracks[i].name;
@@ -1056,7 +1057,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
         ui();
       }else{
         if(!tracks.length){say("Ajoute d'abord des fichiers audio.");return}
-        if(aud.paused){var vl=vList(); if(vl.length&&vl.indexOf(idx)<0){loadTrack(vl[0],true);return}} if(aud.paused) aud.play().catch(function(){say("Lecture impossible pour ce fichier.")}); else {aud.pause();(aud===audA?audB:audA).pause()}
+        if(viewChg){var vc=vList(); if(vc.length){loadTrack(vc[0],true);return}} if(aud.paused){var vl=vList(); if(vl.length&&vl.indexOf(idx)<0){loadTrack(vl[0],true);return}} if(aud.paused) aud.play().catch(function(){say("Lecture impossible pour ce fichier.")}); else {aud.pause();(aud===audA?audB:audA).pause()}
       }
     };
     if(ctx.state==="suspended") ctx.resume().then(go,go); else go();
@@ -1712,7 +1713,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   }
   $("viewsel").addEventListener("change",function(){
     var v=this.value, i=v.indexOf(":");
-    view={t:v.slice(0,i),k:v.slice(i+1)}; viewSave(); renderList();
+    view={t:v.slice(0,i),k:v.slice(i+1)}; viewSave(); renderList(); viewChg=true;
     var l=vList();
     
     this.blur();

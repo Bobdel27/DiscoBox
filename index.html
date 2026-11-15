@@ -532,12 +532,16 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       <li><b>Modifier</b> renomme la playlist, ou l'album quand un artiste est affiché.</li>
       <li><b>Supprimer Playlist</b> supprime la playlist. <b>Supprimer Album</b> supprime l'album affiché.</li>
       <li>Playlists et albums sont indépendants : un titre d'un album supprimé reste dans sa playlist, et un titre retiré de sa dernière playlist disparaît s'il n'a plus d'album.</li>
+      <li>Playlists et albums sont gardés dans l'appli sur cet appareil. Pour les retrouver sur un autre ordinateur, il faut passer par <b>Synchro Drive</b> (voir plus bas).</li>
     </ul>
     <h3>Synchro Drive</h3>
     <ul>
-      <li><b>Synchro Drive</b> échange tes titres et tes playlists avec le dossier « Disco Box » de ton Google Drive (un dossier par artiste). Pour ajouter un album depuis Drive, mets un sous-dossier avec les morceaux dans « Disco Box », puis clique sur Synchro Drive. Elle ne se fait que par ce bouton, F5 ne synchronise pas.</li>
-      <li>Les suppressions sont répercutées : un album supprimé ici part dans la corbeille de Drive, et ce que tu supprimes dans Drive disparaît de l'application.</li>
-      <li>Laisse la synchronisation finir avant de recharger la page.</li>
+      <li><b>Synchro Drive</b> met en commun tes albums et tes playlists avec le dossier « Disco Box » de ton Google Drive (un dossier par artiste). Elle ne se fait que par ce bouton : ni à l'ouverture, ni avec F5.</li>
+      <li><b>Sur chaque ordinateur</b> : clique sur Synchro Drive juste après avoir fini tes changements (ajout, suppression, playlist), et aussi à l'ouverture avant de commencer. Laisse-la finir avant de fermer ou recharger la page.</li>
+      <li><b>Albums</b> : un album ajouté ici est envoyé sur Drive puis téléchargé sur tes autres ordinateurs. Pour ajouter un album depuis Drive, mets un sous-dossier avec les morceaux dans « Disco Box ».</li>
+      <li><b>Suppressions</b> : un album supprimé ici part dans la corbeille de Drive, puis disparaît des autres ordinateurs à leur prochaine synchro. Ce que tu supprimes dans Drive disparaît de l'appli.</li>
+      <li><b>Playlists</b> : les ajouts et retraits de titres faits sur deux ordinateurs différents sont réunis, rien n'est écrasé. Une playlist supprimée l'est partout. Les titres gardés seulement dans une playlist (album supprimé) restent aussi cachés des albums sur les autres ordinateurs.</li>
+      <li>En cas d'erreur Drive, rien n'est supprimé : relance simplement la synchro.</li>
     </ul>
     <h3>Lecture</h3>
     <ul>
@@ -589,6 +593,10 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   function pauseAll(){audA.pause();audB.pause()}
   var mode="tone", toneOn=false, tracks=[], idx=-1, loopMode=0, seeking=false;
   var PL=(function(){try{var a=JSON.parse(localStorage.getItem("enceintes.pl")||"[]");return Array.isArray(a)?a:[]}catch(e){return[]}})();
+  var PLB=(function(){try{var a=JSON.parse(localStorage.getItem("enceintes.plbase")||"[]");return Array.isArray(a)?a:[]}catch(e){return[]}})();
+  var MQ=(function(){try{var o=JSON.parse(localStorage.getItem("enceintes.mq")||"{}");return o&&typeof o==="object"&&!Array.isArray(o)?o:{}}catch(e){return{}}})();
+  function mqSave(){try{localStorage.setItem("enceintes.mq",JSON.stringify(MQ))}catch(e){}}
+  function setHid(t,h){t.hid=!!h;pUpd(t);MQ[gdName(t)]={h:h?1:0,ts:Date.now()};mqSave()}
   var view=(function(){try{var v=JSON.parse(localStorage.getItem("enceintes.view")||"null");return v&&v.t?v:{t:"all",k:""}}catch(e){return{t:"all",k:""}}})();
   var lv={L:{w:0,t:0},R:{w:0,t:0}};
   var buf=new Uint8Array(1024);
@@ -976,10 +984,10 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       var have={}, n=0; tracks.forEach(function(x){have[gdName(x)]=x});
       rs.forEach(function(r){
         var nm=(r.artist||"Divers")+"/"+r.name, t=have[nm];
-        if(t){ if(!pl&&t.hid){t.hid=false;pUpd(t)} }
+        if(t){ if(!pl&&t.hid){setHid(t,false)} }
         else{
           t={name:r.name.replace(/\.[^.]+$/,""),fname:r.name,artist:r.artist,hid:!!pl,blob:r.blob,url:URL.createObjectURL(r.blob)};
-          tracks.push(t);pAdd(t,r.blob);gdBack(t);have[nm]=t;
+          tracks.push(t);pAdd(t,r.blob);gdBack(t);have[nm]=t;MQ[nm]={h:pl?1:0,ts:Date.now()};mqSave();
         }
         if(pl&&pl.items.indexOf(nm)<0){pl.items.push(nm);n++}
       });
@@ -1558,7 +1566,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     if(!GD_CLIENT_ID){say("ID client Google manquant dans le fichier.");return}
     gdBusy=true; gdBtn(); say("Connexion à Drive…");
     gdLoad(function(){gdAuth(function(){
-      var root, entries=[], meta=null, plmeta=null, merged, folders={}, localSkip=[];
+      var root, entries=[], meta=null, plmeta=null, mqmeta=null, merged, folders={}, localSkip=[];
       try{if(!localStorage.getItem("enceintes.gdv2")){gdPut("enceintes.gdskip",[]);localStorage.setItem("enceintes.gdv2","1")}}catch(e){}
       localSkip=gdSkipList();
       gdFill().then(function(){return gdFolderId()}).then(function(id){root=id;return gdList(root,"",[])}).then(function(top){
@@ -1567,6 +1575,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
           if(f.mimeType==="application/vnd.google-apps.folder"){folders[f.name]=f.id;dirs.push(f)}
           else if(f.name==="_supprimes.json")meta=f;
           else if(f.name==="_playlists.json")plmeta=f;
+          else if(f.name==="_masques.json")mqmeta=f;
         });
         var p=Promise.resolve();
         dirs.forEach(function(d){
@@ -1580,7 +1589,12 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
         });
         return p;
       }).then(function(){
-        return meta?gdFetch(GD_API+"/"+meta.id+"?alt=media").then(function(r){return r.json()}).catch(function(){return[]}):[];
+        return gdSyncPl(plmeta,root);
+      }).then(function(){
+        var ex={}; entries.forEach(function(e){ex[e.path]=1}); tracks.forEach(function(t){ex[gdName(t)]=1});
+        return gdSyncMq(mqmeta,root,ex);
+      }).then(function(){
+        return meta?gdFetch(GD_API+"/"+meta.id+"?alt=media").then(function(r){return r.json()}):[];
       }).then(function(rm){
         if(!Array.isArray(rm)) rm=[];
         var back=gdGet("enceintes.gdback");
@@ -1617,8 +1631,6 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
         entries.forEach(function(e){if(k2.indexOf(e.path)<0)k2.push(e.path)});
         gdPut("enceintes.gdknown",k2);
       }).then(function(){
-        return gdSyncPl(plmeta,root);
-      }).then(function(){
         gdPut("enceintes.gdback",[]);
         var have={}; tracks.forEach(function(t){have[gdName(t)]=1});
         var up=tracks.filter(function(t){return t.blob&&!gdMap[gdName(t)]});
@@ -1634,7 +1646,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
           say("Téléchargement "+(++n)+"/"+total+" : "+e.name);
           return gdFetch(GD_API+"/"+e.id+"?alt=media").then(function(r){return r.blob()}).then(function(b){
             var bl=new Blob([b],{type:mimeOf(e.name)});
-            var t={name:e.name.replace(/\.[^.]+$/,""),fname:e.name,artist:e.artist,blob:bl,url:URL.createObjectURL(bl)};
+            var t={name:e.name.replace(/\.[^.]+$/,""),fname:e.name,artist:e.artist,hid:!!(MQ[e.path]&&MQ[e.path].h),blob:bl,url:URL.createObjectURL(bl)};
             tracks.push(t); pAdd(t,bl);
             if(idx<0) loadTrack(0,false); else renderList();
           });
@@ -1700,7 +1712,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   function inAnyPl(t){var k=gdName(t);return plLive().some(function(p){return p.items.indexOf(k)>=0})}
   function dropFromAlbum(i){
     var t=tracks[i]; if(!t) return;
-    if(inAnyPl(t)){t.hid=true;pUpd(t);renderList();ui()}else removeTrack(i);
+    if(inAnyPl(t)){setHid(t,true);renderList();ui()}else removeTrack(i);
   }
   function gcHidden(){
     for(var i=tracks.length-1;i>=0;i--) if(tracks[i].hid&&!inAnyPl(tracks[i])) removeTrack(i);
@@ -1762,18 +1774,48 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
     for(var i=tracks.length-1;i>=0;i--) if(!tracks[i].hid&&(tracks[i].artist||"Divers")===k) dropFromAlbum(i);
     view={t:"all",k:""}; viewSave(); renderList();
   });
+  function plMerge(b,l,r){
+    if(!l) return r; if(!r) return l;
+    var ts=Math.max(l.ts||0,r.ts||0);
+    if(l.del||r.del) return {id:l.id,name:(l.del?l:r).name,items:[],del:true,ts:ts};
+    var bi=(b&&Array.isArray(b.items))?b.items:[], li=l.items||[], ri=r.items||[];
+    var lNew=(l.ts||0)>=(r.ts||0), first=lNew?li:ri, second=lNew?ri:li;
+    var seq=first.concat(second.filter(function(x){return first.indexOf(x)<0}));
+    var items=seq.filter(function(x){return !(bi.indexOf(x)>=0&&(li.indexOf(x)<0||ri.indexOf(x)<0))});
+    var name=(b&&l.name!==b.name)?l.name:((b&&r.name!==b.name)?r.name:(lNew?l.name:r.name));
+    return {id:l.id,name:name,items:items,ts:ts};
+  }
   function gdSyncPl(plmeta,root){
-    return (plmeta?gdFetch(GD_API+"/"+plmeta.id+"?alt=media").then(function(r){return r.json()}).catch(function(){return[]}):Promise.resolve([])).then(function(rp){
+    return (plmeta?gdFetch(GD_API+"/"+plmeta.id+"?alt=media").then(function(r){return r.json()}):Promise.resolve([])).then(function(rp){
       if(!Array.isArray(rp)) rp=[];
-      var m={};
-      rp.concat(PL).forEach(function(p){if(!p||!p.id)return;var o=m[p.id];if(!o||(p.ts||0)>(o.ts||0))m[p.id]=p});
-      var out=Object.keys(m).sort().map(function(k){return m[k]});
+      var bm={},lm={},rm={},ids={};
+      PLB.forEach(function(p){if(p&&p.id)bm[p.id]=p});
+      PL.forEach(function(p){if(p&&p.id){lm[p.id]=p;ids[p.id]=1}});
+      rp.forEach(function(p){if(p&&p.id){rm[p.id]=p;ids[p.id]=1}});
+      var out=Object.keys(ids).sort().map(function(k){return plMerge(bm[k],lm[k],rm[k])});
       var by=function(a,b){return a.id<b.id?-1:1};
       var same=JSON.stringify(rp.filter(function(p){return p&&p.id}).sort(by))===JSON.stringify(out.slice().sort(by));
       PL=out; plSave(); renderList();
-      if(same) return;
+      var done=function(){PLB=JSON.parse(JSON.stringify(out));try{localStorage.setItem("enceintes.plbase",JSON.stringify(PLB))}catch(e){}};
+      if(same){done();return}
       var bl=new Blob([JSON.stringify(out)],{type:"application/json"});
-      return plmeta?gdPatch(plmeta.id,bl):gdUpload(root,"_playlists.json",bl);
+      return (plmeta?gdPatch(plmeta.id,bl):gdUpload(root,"_playlists.json",bl)).then(done);
+    });
+  }
+  function gdSyncMq(mqmeta,root,ex){
+    tracks.forEach(function(t){var n=gdName(t); if(t.hid&&!MQ[n]) MQ[n]={h:1,ts:Date.now()}});
+    return (mqmeta?gdFetch(GD_API+"/"+mqmeta.id+"?alt=media").then(function(r){return r.json()}):Promise.resolve({})).then(function(rm){
+      if(!rm||typeof rm!=="object"||Array.isArray(rm)) rm={};
+      var out={},k;
+      for(k in rm) out[k]=rm[k];
+      for(k in MQ) if(!out[k]||(MQ[k].ts||0)>=(out[k].ts||0)) out[k]=MQ[k];
+      for(k in out) if(!ex[k]) delete out[k];
+      MQ=out; mqSave();
+      tracks.forEach(function(t){var e=out[gdName(t)]; if(e&&!!e.h!==!!t.hid){t.hid=!!e.h;pUpd(t)}});
+      renderList();
+      if(JSON.stringify(rm)===JSON.stringify(out)) return;
+      var bl=new Blob([JSON.stringify(out)],{type:"application/json"});
+      return mqmeta?gdPatch(mqmeta.id,bl):gdUpload(root,"_masques.json",bl);
     });
   }
   /* Mode d'emploi */

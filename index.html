@@ -532,7 +532,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       <li><b>Modifier</b> renomme la playlist, ou l'album quand un artiste est affiché.</li>
       <li><b>Supprimer Playlist</b> supprime la playlist. <b>Supprimer Album</b> supprime l'album affiché.</li>
       <li>Playlists et albums sont indépendants : un titre d'un album supprimé reste dans sa playlist, et un titre retiré de sa dernière playlist disparaît s'il n'a plus d'album.</li>
-      <li>Playlists et albums sont gardés dans l'appli sur cet appareil. Pour les retrouver sur un autre ordinateur, il faut passer par <b>Synchro Drive</b> (voir plus bas).</li>
+      <li>Playlists et albums sont gardés dans l'appli sur cet appareil. Les albums sont toujours classés dans l'ordre alphanumérique (1, 2, 3… 10), même à chaque synchro. Une playlist garde l'ordre dans lequel tu y as ajouté les titres. Pour les retrouver sur un autre ordinateur, il faut passer par <b>Synchro Drive</b> (voir plus bas).</li>
     </ul>
     <h3>Synchro Drive</h3>
     <ul>
@@ -1665,6 +1665,10 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   function plLive(){return PL.filter(function(p){return !p.del})}
   function plGet(id){for(var i=0;i<PL.length;i++) if(PL[i].id===id&&!PL[i].del) return PL[i]; return null}
   function viewSave(){try{localStorage.setItem("enceintes.view",JSON.stringify(view))}catch(e){}}
+  function vSort(r){
+    var k={}; r.forEach(function(i){k[i]=gdName(tracks[i])});
+    return r.sort(function(x,y){return k[x].localeCompare(k[y],undefined,{numeric:true,sensitivity:"base"})});
+  }
   function vList(){
     var r=[],i;
     if(view.t==="pl"){
@@ -1673,7 +1677,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
       return r;
     }
     for(i=0;i<tracks.length;i++) if(!tracks[i].hid&&(view.t!=="artist"||(tracks[i].artist||"Divers")===view.k)) r.push(i);
-    return r;
+    return vSort(r);
   }
   function viewUi(){
     var s=$("viewsel"), arts={}, pls=plLive();

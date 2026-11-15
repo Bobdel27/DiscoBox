@@ -967,6 +967,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   }
   function addFiles(inp,pl){
     var fl=Array.prototype.slice.call(inp.files||[]).filter(function(f){return /^audio\//.test(f.type)||/\.(mp3|m4a|aac|wav|flac|ogg|oga|opus|aif|aiff|caf|mp4|wma|weba)$/i.test(f.name)}); if(!fl.length) return;
+    fl.sort(function(x,y){return x.name.localeCompare(y.name,undefined,{numeric:true,sensitivity:"base"})});
     init();
     inp.value="";
     say("Copie des fichiers en mémoire…");
@@ -1055,7 +1056,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
         ui();
       }else{
         if(!tracks.length){say("Ajoute d'abord des fichiers audio.");return}
-        if(aud.paused) aud.play().catch(function(){say("Lecture impossible pour ce fichier.")}); else {aud.pause();(aud===audA?audB:audA).pause()}
+        if(aud.paused){var vl=vList(); if(vl.length&&vl.indexOf(idx)<0){loadTrack(vl[0],true);return}} if(aud.paused) aud.play().catch(function(){say("Lecture impossible pour ce fichier.")}); else {aud.pause();(aud===audA?audB:audA).pause()}
       }
     };
     if(ctx.state==="suspended") ctx.resume().then(go,go); else go();

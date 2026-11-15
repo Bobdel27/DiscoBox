@@ -1420,7 +1420,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
   });
   /* Synchronisation Google Drive (dossier « Disco Box ») */
   var GD_CLIENT_ID="234668882718-tr230ll91cncmrfpm729brqgs0sbr483.apps.googleusercontent.com";
-  var GD_SCOPE="https://www.googleapis.com/auth/drive.file";
+  var GD_SCOPE="https://www.googleapis.com/auth/drive";
   var gdTok=null,gdExp=0,gdBusy=false,gdMap={};
   var GD_EXT={"audio/mpeg":"mp3","audio/mp3":"mp3","audio/mp4":"m4a","audio/x-m4a":"m4a","audio/aac":"aac","audio/wav":"wav","audio/x-wav":"wav","audio/flac":"flac","audio/x-flac":"flac","audio/ogg":"ogg","audio/opus":"opus","audio/webm":"weba"};
   function gdFile(t){return t.fname||(t.name+"."+((t.blob&&GD_EXT[t.blob.type])||"mp3"))}
@@ -1622,7 +1622,7 @@ h1.dbt.fin .ch{color:#fff;text-shadow:0 0 .35em rgba(255,255,255,.9),0 0 1em rgb
         var have={}; tracks.forEach(function(t){have[gdName(t)]=1});
         var up=tracks.filter(function(t){return t.blob&&!gdMap[gdName(t)]});
         var down=entries.filter(function(e){return !have[e.path]&&merged.indexOf(e.path)<0});
-        var total=up.length+down.length, n=0, p=Promise.resolve();
+        down.sort(function(x,y){return x.path.localeCompare(y.path,undefined,{numeric:true,sensitivity:"base"})}); var total=up.length+down.length, n=0, p=Promise.resolve();
         up.forEach(function(t){p=p.then(function(){
           say("Envoi "+(++n)+"/"+total+" : "+t.name);
           var a=t.artist||"Divers";
